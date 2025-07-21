@@ -21,20 +21,24 @@ RUN apt-get update && apt-get install -y \
 # Create workspace directory (RunPod convention)
 WORKDIR /workspace
 
-# Clone Wan2GP repository at specific commit as specified in deploy instructions
-RUN git clone https://github.com/deepbeepmeep/Wan2GP.git . \
-    && git checkout 597d26b7e0e53550f57a9973c5d6a1937b2e1a7b
+# Clone Wan2GP repository to subdirectory (matches manual setup: cd workspace; git clone ...)
+RUN git clone https://github.com/deepbeepmeep/Wan2GP.git Wan2GP
+
+# Switch to the cloned directory  
+WORKDIR /workspace/Wan2GP
+
+# Checkout specific commit
+RUN git checkout 597d26b7e0e53550f57a9973c5d6a1937b2e1a7b
 
 # Install Python dependencies with aggressive cleanup to manage disk space
-RUN sed -i 's/gradio==5.23.0/gradio==5.35.0/' requirements.txt && \
-    python3 -m pip install --no-cache-dir -r requirements.txt && \
+RUN python3 -m pip install --no-cache-dir -r requirements.txt && \
     rm -rf /tmp/* /var/tmp/* /root/.cache/pip && \
     find /usr/local -name "*.pyc" -delete && \
     find /usr/local -name "__pycache__" -type d -exec rm -rf {} + 2>/dev/null || true && \
     python3 -c "import gc; gc.collect()"
 
-# Install specific versions mentioned in deploy instructions
-RUN python3 -m pip install --no-cache-dir sageattention==1.0.6
+# Install specific versions mentioned in deploy instructions (will upgrade gradio from 5.23.0 to 5.35.0)
+RUN python3 -m pip install --no-cache-dir gradio==5.35.0 sageattention==1.0.6
 
 # Final cleanup to minimize image size
 RUN apt-get autoremove -y && \
@@ -47,5 +51,5 @@ RUN apt-get autoremove -y && \
 # Expose port 7860 for Gradio interface
 EXPOSE 7860
 
-# Set the default command to run the application
+# Set the default command to run the application (we're already in /workspace/Wan2GP)
 CMD ["python3", "wgp.py", "--server-name", "0.0.0.0"] 
