@@ -6,11 +6,16 @@ FROM runpod/pytorch:2.8.0-py3.11-cuda12.8.1-cudnn-devel-ubuntu22.04
 ENV DEBIAN_FRONTEND=noninteractive
 ENV PYTHONUNBUFFERED=1
 ENV PIP_NO_CACHE_DIR=1
+ENV SHELL=/bin/bash
 
-# Additional system dependencies for Wan2GP
+# Explicitly set shell for RUN commands
+SHELL ["/bin/bash", "-o", "pipefail", "-c"]
+
+# Additional system dependencies for Wan2GP  
 RUN apt-get update && apt-get install -y \
     ffmpeg \
     tmux \
+    build-essential \
     && rm -rf /var/lib/apt/lists/*
 
 # Create workspace directory (RunPod convention)
