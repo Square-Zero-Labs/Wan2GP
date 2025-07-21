@@ -48,8 +48,49 @@ RUN apt-get autoremove -y && \
     find /usr/local -name "__pycache__" -type d -exec rm -rf {} + 2>/dev/null || true && \
     python3 -c "import gc; gc.collect()"
 
-# Expose port 7860 for Gradio interface
-EXPOSE 7860
+# Expose ports for Gradio interface and Jupyter Lab
+EXPOSE 7860 8888
 
-# Set the default command to run the application (we're already in /workspace/Wan2GP)
-CMD ["python3", "wgp.py", "--server-name", "0.0.0.0"] 
+# Create a startup script that runs RunPod services first, then Wan2GP
+RUN echo '#!/bin/bash\n\
+echo "=== RunPod Wan2GP Startup ==="\n\
+\n\
+# Start RunPod services (Jupyter, SSH, etc.) in background\n\
+echo "Starting RunPod services..."\n\
+if [ -f "/start.sh" ]; then\n\
+    echo "✅ Found RunPod start.sh, starting services..."\n\
+    nohup /start.sh > /tmp/runpod-services.log 2>&1 &\n\
+    echo "RunPod services started (check /tmp/runpod-services.log for details)"\n\
+else\n\
+    echo "⚠️ RunPod start.sh not found, services may not be available"\n\
+fi\n\
+\n\
+# Give services a moment to start\n\
+sleep 5\n\
+\n\
+echo "=== Wan2GP Debug Info ==="\n\
+echo "Current working directory: $(pwd)"\n\
+echo "Contents of /workspace:"\n\
+ls -la /workspace/\n\
+echo "Contents of /workspace/Wan2GP (if exists):"\n\
+ls -la /workspace/Wan2GP/ 2>/dev/null || echo "Directory /workspace/Wan2GP does not exist"\n\
+echo "Looking for wgp.py anywhere in /workspace:"\n\
+find /workspace -name "wgp.py" -type f 2>/dev/null || echo "wgp.py not found in /workspace"\n\
+echo "================================"\n\
+\n\
+# Check if wgp.py exists in current directory\n\
+if [ -f "wgp.py" ]; then\n\
+    echo "✅ Found wgp.py in current directory, starting application..."\n\
+    python3 wgp.py --server-name 0.0.0.0\n\
+elif [ -f "/workspace/Wan2GP/wgp.py" ]; then\n\
+    echo "✅ Found wgp.py in /workspace/Wan2GP, changing directory..."\n\
+    cd /workspace/Wan2GP\n\
+    python3 wgp.py --server-name 0.0.0.0\n\
+else\n\
+    echo "❌ wgp.py not found! Container will sleep for debugging..."\n\
+    echo "You can connect via Jupyter Lab or SSH (RunPod services should be running)"\n\
+    sleep 3600\n\
+fi' > /usr/local/bin/start-wan2gp.sh && chmod +x /usr/local/bin/start-wan2gp.sh
+
+# Set the default command to run our debug startup script
+CMD ["/usr/local/bin/start-wan2gp.sh"] 
