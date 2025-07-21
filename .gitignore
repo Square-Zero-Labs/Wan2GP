@@ -28,6 +28,7 @@ storage/
 samples/
 !.gitignore
 !requirements.txt
+!.github/
 .DS_Store
 *DS_Store
 google/
