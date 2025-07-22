@@ -63,7 +63,8 @@ Create a new RunPod template with these settings:
 
 - **Template Name**: Wan2GP
 - **Container Image**: `ghcr.io/square-zero-labs/wan2gp:latest`
-- **Container Disk**: 60 GB minimum
+- **Container Disk**: 50 GB (for OS and applications)
+- **Volume Storage**: 75 GB minimum (for models and outputs)
 - **Expose HTTP Ports**: `7860,8888`
 - **Volume Mount Path**: `/workspace` (recommended for persistence)
 
