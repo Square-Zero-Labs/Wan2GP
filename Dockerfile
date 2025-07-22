@@ -31,9 +31,10 @@ WORKDIR /workspace/Wan2GP
 # Checkout specific commit
 RUN git checkout 597d26b7e0e53550f57a9973c5d6a1937b2e1a7b
 
-# Install Python dependencies and perform cleanup in a single layer
-RUN python3 -m pip install --no-cache-dir -r requirements.txt \
-    && python3 -m pip install --no-cache-dir gradio==5.35.0 sageattention==1.0.6 \
+# Install Python dependencies using an upgrade strategy to avoid re-installing existing packages.
+# This also combines all pip commands into a single layer for efficiency.
+RUN python3 -m pip install --upgrade --no-cache-dir -r requirements.txt \
+    && python3 -m pip install --upgrade --no-cache-dir gradio==5.35.0 sageattention==1.0.6 \
     && rm -rf /root/.cache/pip
 
 # Expose ports for Gradio interface and Jupyter Lab
