@@ -88,10 +88,10 @@ You can customize the deployment with these environment variables:
 
 ```bash
 # Tail the main application logs
-tail -f /tmp/wan2gp.log
+tail -f /workspace/wan2gp.log
 
 # View all logs at once
-cat /tmp/wan2gp.log
+cat /workspace/wan2gp.log
 ```
 
 ### Check Running Services
@@ -157,7 +157,7 @@ curl -s http://localhost:8888 | head
 
 - `/workspace/Wan2GP/` - Main application directory (persistent if volume mounted)
 - `/opt/wan2gp_source/` - Backup copy of application (built into image)
-- `/tmp/wan2gp.log` - Application logs
+- `/workspace/wan2gp.log` - Application logs
 - Ports 7860 (Gradio) and 8888 (Jupyter Lab) exposed
 
 ### Startup Process
@@ -255,7 +255,7 @@ Edit `start-wan2gp.sh` to customize:
 
 ```bash
 # Check application logs
-cat /tmp/wan2gp.log
+cat /workspace/wan2gp.log
 
 # Check if files were restored
 ls -la /workspace/Wan2GP/
@@ -363,3 +363,24 @@ For issues related to:
 - **Wan2GP Application**: See main project documentation
 - **RunPod Platform**: Contact RunPod support
 - **Build Failures**: Check GitHub Actions logs and this troubleshooting section
+
+## Log Files
+
+All service logs are saved to the persistent `/workspace` directory:
+
+- **Wan2GP Application**: `/workspace/wan2gp.log`
+- **Jupyter Lab**: Check with `ps aux | grep jupyter` for token
+- **Container Startup**: Visible in Docker logs
+
+### Viewing Logs
+
+```bash
+# View Wan2GP logs
+tail -f /workspace/wan2gp.log
+
+# View last 100 lines
+tail -n 100 /workspace/wan2gp.log
+
+# Monitor for errors
+grep -i error /workspace/wan2gp.log
+```
