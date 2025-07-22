@@ -9,7 +9,8 @@ The easiest way to deploy Wan2GP on RunPod is using our pre-built Docker image:
 #### RunPod Template Configuration:
 
 - **Container Image**: `ghcr.io/square-zero-labs/wan2gp:latest`
-- **Container Disk**: 60 GB
+- **Container Disk**: 50 GB
+- **Volume Disk**: 75 GB
 - **Expose Port**: 7860
 - **Volume Mount**: `/workspace` (optional, for persistent storage)
 
@@ -45,7 +46,7 @@ Choose On-Demand or Spot
 cd workspace
 git clone https://github.com/deepbeepmeep/Wan2GP.git
 cd Wan2GP
-git checkout 597d26b7e0e53550f57a9973c5d6a1937b2e1a7b
+git checkout 4a38beca5b38aea115e2292596da097a375ff182
 pip install -r requirements.txt
 apt-get update && apt-get install -y ffmpeg
 pip install gradio==5.35.0
