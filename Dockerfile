@@ -8,19 +8,20 @@ ENV PIP_NO_CACHE_DIR=1
 ENV SHELL=/bin/bash
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 
-# Install system dependencies (remove supervisor since we're not using it)
+# Install system dependencies 
 RUN apt-get update && apt-get install -y --no-install-recommends \
     ffmpeg \
     tmux \
     build-essential \
     rsync \
+    apache2-utils \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
 # Clone the application source code to a "safe" location that won't be volume-mounted.
 RUN git clone https://github.com/deepbeepmeep/Wan2GP.git /opt/wan2gp_source \
     && cd /opt/wan2gp_source \
-    && git checkout 4a38beca5b38aea115e2292596da097a375ff182
+    && git checkout 6850d60caa0edddeed922d56e8297bd955eb5dfb
 
 # Install Python dependencies from the source code.
 # The GitHub Actions workflow is configured to maximize build space, so we can
@@ -34,8 +35,8 @@ RUN sed -i -e 's/^torch>=/#torch>=/' -e 's/^torchvision>=/#torchvision>=/' /opt/
 COPY start-wan2gp.sh /usr/local/bin/start-wan2gp.sh
 RUN chmod +x /usr/local/bin/start-wan2gp.sh
 
-# Expose ports for Gradio interface and Jupyter Lab
-EXPOSE 7860 8888
+# Expose ports for authenticated Gradio interface and Jupyter Lab
+EXPOSE 7862 8888
 
 # Use our startup script as the main command
 CMD ["/usr/local/bin/start-wan2gp.sh"] 
