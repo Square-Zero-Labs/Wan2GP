@@ -8,23 +8,21 @@ ENV PIP_NO_CACHE_DIR=1
 ENV SHELL=/bin/bash
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 
-# 1. Install system dependencies.
-# We add `supervisor` to manage our custom process and `rsync` for robust file copying.
+# Install system dependencies (remove supervisor since we're not using it)
 RUN apt-get update && apt-get install -y --no-install-recommends \
     ffmpeg \
     tmux \
     build-essential \
-    supervisor \
     rsync \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
-# 2. Clone the application source code to a "safe" location that won't be volume-mounted.
+# Clone the application source code to a "safe" location that won't be volume-mounted.
 RUN git clone https://github.com/deepbeepmeep/Wan2GP.git /opt/wan2gp_source \
     && cd /opt/wan2gp_source \
     && git checkout 597d26b7e0e53550f57a9973c5d6a1937b2e1a7b
 
-# 3. Install Python dependencies from the source code.
+# Install Python dependencies from the source code.
 # The GitHub Actions workflow is configured to maximize build space, so we can
 # now use a single, clean RUN command for better maintainability.
 RUN sed -i -e 's/^torch>=/#torch>=/' -e 's/^torchvision>=/#torchvision>=/' /opt/wan2gp_source/requirements.txt \
@@ -32,42 +30,12 @@ RUN sed -i -e 's/^torch>=/#torch>=/' -e 's/^torchvision>=/#torchvision>=/' /opt/
     && python3 -m pip install --no-cache-dir gradio==5.35.0 sageattention==1.0.6 \
     && rm -rf /root/.cache/pip
 
-# 4. Set up supervisor to run our application.
-# The base image's start.sh will launch supervisord, which will then run our script.
-# This is the correct way to add a service to the RunPod environment.
-
-# Copy the supervisor configuration file.
-COPY <<'EOF' /etc/supervisor/conf.d/wan2gp.conf
-[program:wan2gp]
-command=/usr/local/bin/start-wan2gp.sh
-autostart=true
-autorestart=true
-stdout_logfile=/var/log/supervisor/wan2gp.log
-stderr_logfile=/var/log/supervisor/wan2gp_err.log
-EOF
-
-# Copy our application startup script.
-COPY <<'EOF' /usr/local/bin/start-wan2gp.sh
-#!/bin/bash
-set -e
-echo "--- Wan2GP Supervisor Startup Script ---"
-
-# Restore application files if workspace is mounted and empty. This handles the volume mount issue.
-if [ ! -f "/workspace/Wan2GP/wgp.py" ]; then
-    echo "--> wgp.py not found. Restoring from backup..."
-    mkdir -p /workspace/Wan2GP
-    rsync -a --ignore-existing /opt/wan2gp_source/ /workspace/Wan2GP/
-    echo "--> Restore complete."
-fi
-
-# Navigate to the correct directory and launch the application.
-cd /workspace/Wan2GP
-echo "--> Starting Wan2GP application..."
-exec python3 wgp.py --server-name 0.0.0.0
-EOF
-
-# Make our startup script executable.
+# Copy and set up our startup script
+COPY start-wan2gp.sh /usr/local/bin/start-wan2gp.sh
 RUN chmod +x /usr/local/bin/start-wan2gp.sh
 
-# 5. Expose ports. We do NOT provide a CMD, so the base image's CMD runs.
-EXPOSE 7860 8888 
+# Expose ports for Gradio interface and Jupyter Lab
+EXPOSE 7860 8888
+
+# Use our startup script as the main command
+CMD ["/usr/local/bin/start-wan2gp.sh"] 
