@@ -24,13 +24,31 @@ RUN git clone https://github.com/deepbeepmeep/Wan2GP.git /opt/wan2gp_source \
     && cd /opt/wan2gp_source \
     && git checkout 597d26b7e0e53550f57a9973c5d6a1937b2e1a7b
 
-# 3. Install Python dependencies from the source code.
-# We use `sed` to comment out `torch` and `torchvision` to prevent re-installation,
-# which is the definitive fix for the "No space left on device" error.
-RUN sed -i -e 's/^torch>=/#torch>=/' -e 's/^torchvision>=/#torchvision>=/' /opt/wan2gp_source/requirements.txt \
-    && python3 -m pip install --no-cache-dir -r /opt/wan2gp_source/requirements.txt \
-    && python3 -m pip install --no-cache-dir gradio==5.35.0 sageattention==1.0.6 \
-    && rm -rf /root/.cache/pip
+# 3. Install Python dependencies using a multi-stage approach that balances
+# robustness against maintainability.
+
+# First, comment out the large, pre-installed packages to prevent re-downloading.
+RUN sed -i -e 's/^torch>=/#torch>=/' -e 's/^torchvision>=/#torchvision>=/' /opt/wan2gp_source/requirements.txt
+
+# Step 1: Install the known "heavy hitters" in their own layer.
+# This isolates the largest packages and allows the builder to reclaim
+# temporary space before installing the rest of the requirements.
+RUN python3 -m pip install --no-cache-dir \
+    "opencv-python>=4.9.0.80" \
+    "onnxruntime-gpu" \
+    "rembg[gpu]==2.0.65" \
+    "pyannote.audio"
+
+# Step 2: Install the rest of the packages from the requirements file.
+# pip will intelligently skip the packages that were already installed in the step above.
+# This keeps the process dynamic for most packages.
+RUN python3 -m pip install --no-cache-dir -r /opt/wan2gp_source/requirements.txt
+
+# Step 3: Install final specific version overrides.
+RUN python3 -m pip install --no-cache-dir gradio==5.35.0 sageattention==1.0.6
+
+# Final cleanup of any remaining cache.
+RUN rm -rf /root/.cache/pip
 
 # 4. Set up supervisor to run our application.
 # The base image's start.sh will launch supervisord, which will then run our script.
