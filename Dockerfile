@@ -30,14 +30,13 @@ RUN git clone https://github.com/deepbeepmeep/Wan2GP.git /opt/wan2gp_source \
 # First, comment out the large, pre-installed packages to prevent re-downloading.
 RUN sed -i -e 's/^torch>=/#torch>=/' -e 's/^torchvision>=/#torchvision>=/' /opt/wan2gp_source/requirements.txt
 
-# Step 1: Install the known "heavy hitters" in their own layer.
-# This isolates the largest packages and allows the builder to reclaim
-# temporary space before installing the rest of the requirements.
-RUN python3 -m pip install --no-cache-dir \
-    "opencv-python>=4.9.0.80" \
-    "onnxruntime-gpu" \
-    "rembg[gpu]==2.0.65" \
-    "pyannote.audio"
+# Step 1: Install the known "heavy hitters" one by one. This is the most
+# robust method to prevent disk space errors during build, as each install
+# gets its own layer and a clean temporary directory.
+RUN python3 -m pip install --no-cache-dir "opencv-python>=4.9.0.80"
+RUN python3 -m pip install --no-cache-dir "onnxruntime-gpu"
+RUN python3 -m pip install --no-cache-dir "rembg[gpu]==2.0.65"
+RUN python3 -m pip install --no-cache-dir "pyannote.audio"
 
 # Step 2: Install the rest of the packages from the requirements file.
 # pip will intelligently skip the packages that were already installed in the step above.
