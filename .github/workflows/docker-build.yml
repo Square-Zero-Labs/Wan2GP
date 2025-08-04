@@ -5,7 +5,7 @@ on:
     branches:
       - main
       - docker
-      - update
+      - update-aug4
     tags:
       - "v*"
 
