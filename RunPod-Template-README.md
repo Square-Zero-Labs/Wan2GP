@@ -1,12 +1,12 @@
 # Wan2GP - AI Video Generation Template
 
-#### Last Updated on 8/04/2025 to Wan2GP v7.6 Remuxed
+#### Last Updated on 8/08/2025 to Wan2GP v7.73 Qwen Rebirth
 
 ## _This template has been tested with an A40_
 
 ## What is Wan2GP?
 
-WAN2GP (aka "Wan 2.1 for the GPU Poor") is a free, open-source tool that lets you generate videos using advanced AI models—even on modest GPUs. Wan2GP supports multiple state-of-the-art models including:
+WAN2GP (aka "Wan for the GPU Poor") is a free, open-source tool that lets you generate videos using advanced AI models—even on modest GPUs. Wan2GP supports multiple state-of-the-art models including:
 
 - **Text-to-Video**: Create videos from text prompts
 - **Image-to-Video**: Animate static images
