@@ -21,7 +21,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # Clone the application source code to a "safe" location that won't be volume-mounted.
 RUN git clone https://github.com/deepbeepmeep/Wan2GP.git /opt/wan2gp_source \
     && cd /opt/wan2gp_source \
-    && git checkout 27d4c8eb4df57be4c1bcf2a7c40fbcf30e26c8a5
+    && git checkout b8d843e7db80479d20e2ebf882c62685703492a8
 
 # Install Python dependencies from the source code.
 # The GitHub Actions workflow is configured to maximize build space, so we can
