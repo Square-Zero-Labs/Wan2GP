@@ -31,9 +31,10 @@ RUN sed -i -e 's/^torch>=/#torch>=/' -e 's/^torchvision>=/#torchvision>=/' /opt/
     && python3 -m pip install --no-cache-dir gradio==5.35.0 sageattention==1.0.6 \
     && rm -rf /root/.cache/pip
 
-# Copy and set up our startup script
+# Copy and set up our startup and update scripts
 COPY start-wan2gp.sh /usr/local/bin/start-wan2gp.sh
-RUN chmod +x /usr/local/bin/start-wan2gp.sh
+COPY update-wan2gp.sh /usr/local/bin/update-wan2gp.sh
+RUN chmod +x /usr/local/bin/start-wan2gp.sh && chmod +x /usr/local/bin/update-wan2gp.sh
 
 # Expose ports for authenticated Gradio interface and Jupyter Lab
 EXPOSE 7862 8888

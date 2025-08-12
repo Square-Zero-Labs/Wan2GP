@@ -88,6 +88,22 @@ python3 wgp.py --server-name 0.0.0.0
 - Remove unused models from `/workspace/models`
 - Remove old logs at `/worskpace/wan2gp.log`
 
+## Updating the Application (Live Pod)
+
+If you want to update the Wan2GP application to the latest version of Wan2GP without waiting for a new version of the template, you can use the built-in update script.
+
+**Important**: If you stop and restart your pod after updating, you should run the update script again on restart. Otherwise, you could have mismatched python dependency versions.
+
+To run the live update:
+
+1.  Connect to your pod using the web terminal or SSH.
+2.  Run the following command:
+    ```bash
+    update-wan2gp.sh
+    ```
+3.  The script will stop the application, download the latest code, update dependencies, and restart the service. This may take a minute.
+4.  You can monitor the progress in the terminal and check the application log once it's complete: `tail -f /workspace/wan2gp.log`
+
 ## Support
 
 - **Template Issues**: [GitHub Issues](https://github.com/Square-Zero-Labs/Wan2GP/issues)

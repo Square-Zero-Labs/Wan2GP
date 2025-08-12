@@ -6,6 +6,7 @@ on:
       - main
       - docker
       - update-8-8
+      - update-script
     tags:
       - "v*"
 
