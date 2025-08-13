@@ -1,6 +1,6 @@
 # Wan2GP - AI Video Generation Template
 
-#### Last Updated on 8/08/2025 to Wan2GP v7.73 Qwen Rebirth
+#### Last Updated on 8/12/2025 to WanGP v7.7777 - Lucky Day(s)
 
 ## _This template has been tested with an A40_
 
