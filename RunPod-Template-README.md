@@ -2,15 +2,13 @@
 
 #### Last Updated on 8/12/2025 to WanGP v7.7777 - Lucky Day(s)
 
-## _This template has been tested with an A40_
+### _This template has been tested with an A40_
+
+- To run on RTX 5090, you must deactivate SageAttention. See instructions below.
 
 ## What is Wan2GP?
 
-WAN2GP (aka "Wan for the GPU Poor") is a free, open-source tool that lets you generate videos using advanced AI models—even on modest GPUs. Wan2GP supports multiple state-of-the-art models including:
-
-- **Text-to-Video**: Create videos from text prompts
-- **Image-to-Video**: Animate static images
-- **Multitalk**: Animate multiple characters in the same scene with different voices
+WAN2GP (aka "Wan for the GPU Poor") is a free, open-source tool that lets you generate videos using advanced AI models—even on modest GPUs.
 
 ## What This Template Provides
 
@@ -57,10 +55,10 @@ WAN2GP_PASSWORD=your_secure_password
 1. Connect to port **8888**
 2. Get the access token: Connect via SSH or the web terminal and run:
    ```bash
-   ps aux | grep jupyter
+   jupyter server list
    ```
-3. Look for `--ServerApp.token=XXXXXX` in the output
-4. Use that token to log into Jupyter Lab
+3. Look for the token in the output
+4. Use just the token to log into Jupyter Lab
 
 ## Troubleshooting
 
@@ -87,6 +85,15 @@ python3 wgp.py --server-name 0.0.0.0
 - Clean up old outputs in `/workspace/outputs`
 - Remove unused models from `/workspace/models`
 - Remove old logs at `/worskpace/wan2gp.log`
+
+### Running on RTX 5090
+
+You must deactivate SageAttention before generating videos.
+
+1. Open the Wan2GP UI and go to the Configuration tab.
+2. Find the Attention Type setting.
+3. From its dropdown menu, choose Scale Dot Product Attention.
+4. Click Apply Changes at the bottom.
 
 ## ⚠️ Advanced: Live-Updating the Application ⚠️
 
