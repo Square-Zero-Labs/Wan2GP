@@ -1,6 +1,6 @@
 # Wan2GP - AI Video Generation Template
 
-#### Last Updated on 8/17/2025 to WanGP v7.7777 - Lucky Day(s)
+#### Last Updated on 8/25/2025 to v8.1 - the RAM Liberator
 
 ### _This template has been tested with an A40_
 
@@ -115,11 +115,9 @@ To run the live update:
 3.  The script will stop the application, download the latest code, update dependencies, and restart the service. This may take a minute.
 4.  You can monitor the progress in the terminal and check the application log once it's complete: `tail -f /workspace/wan2gp.log`
 
-## Support
+## Walkthroughs and Tutorials
 
-- **Template Issues**: [GitHub Issues](https://github.com/Square-Zero-Labs/Wan2GP/issues)
-- **Model Questions**: Check the [Wan2GP documentation](https://github.com/deepbeepmeep/Wan2GP)
-- **RunPod Platform**: RunPod support
+See [Fuzz Puppy on YouTube](https://www.youtube.com/@fuzz_puppy)
 
 ---
 
