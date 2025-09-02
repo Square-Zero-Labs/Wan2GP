@@ -1,6 +1,6 @@
 # Wan2GP - AI Video Generation Template
 
-#### Last Updated on 8/25/2025 to v8.1 - the RAM Liberator
+#### Last Updated on 9/2/2025 to v8.21 - Here Goes Your Weekend
 
 ### _This template has been tested with an A40_
 
