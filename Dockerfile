@@ -9,7 +9,9 @@ ENV SHELL=/bin/bash
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 
 # Install system dependencies 
-RUN apt-get update && apt-get install -y --no-install-recommends \
+RUN rm -f /etc/apt/sources.list.d/cuda*.list && \
+    apt-get update && \
+    apt-get install -y --no-install-recommends \
     ffmpeg \
     tmux \
     build-essential \
