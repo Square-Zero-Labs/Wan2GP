@@ -5,7 +5,7 @@ on:
     branches:
       - main
       - docker
-      - update-8-25
+      - update-9-2
     tags:
       - "v*"
 
