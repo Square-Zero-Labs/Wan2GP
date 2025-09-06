@@ -1,6 +1,6 @@
 # Wan2GP - AI Video Generation Template
 
-#### Last Updated on 9/3/2025 to v8.31 - At last the pain stops
+#### Last Updated on 9/6/2025 to v8.4 - Take me to Outer Space
 
 ### _This template has been tested with an A40_
 
