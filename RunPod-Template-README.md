@@ -79,6 +79,12 @@ cd /workspace/Wan2GP
 python3 wgp.py --server-name 0.0.0.0
 ```
 
+### Quick Restart Command
+
+- Restart the Wan2GP app without updating code/dependencies:
+  - `restart-wan2gp.sh`
+  - This stops any running `wgp.py` and starts a fresh instance on port 7860.
+
 ### Out of Space?
 
 - Increase your **Volume Storage** (not Container Disk)
