@@ -68,15 +68,11 @@ WAN2GP_PASSWORD=your_secure_password
 - Check if you set custom `WAN2GP_PASSWORD` environment variable
 - Wait 30 seconds after pod start for nginx to initialize
 
-### Application Not Loading?
+### Check logs for issues
 
 ```bash
 # Check if services are running
 tail -f /workspace/wan2gp.log
-
-# Restart if needed (rare)
-cd /workspace/Wan2GP
-python3 wgp.py --server-name 0.0.0.0
 ```
 
 ### Quick Restart Command
