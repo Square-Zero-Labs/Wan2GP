@@ -36,7 +36,10 @@ RUN sed -i -e 's/^torch>=/#torch>=/' -e 's/^torchvision>=/#torchvision>=/' /opt/
 # Copy and set up our startup and update scripts
 COPY start-wan2gp.sh /usr/local/bin/start-wan2gp.sh
 COPY update-wan2gp.sh /usr/local/bin/update-wan2gp.sh
-RUN chmod +x /usr/local/bin/start-wan2gp.sh && chmod +x /usr/local/bin/update-wan2gp.sh
+COPY restart-wan2gp.sh /usr/local/bin/restart-wan2gp.sh
+RUN chmod +x /usr/local/bin/start-wan2gp.sh \
+    && chmod +x /usr/local/bin/update-wan2gp.sh \
+    && chmod +x /usr/local/bin/restart-wan2gp.sh
 
 # Expose ports for authenticated Gradio interface and Jupyter Lab
 EXPOSE 7862 8888
