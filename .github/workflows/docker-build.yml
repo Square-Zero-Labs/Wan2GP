@@ -6,7 +6,6 @@ on:
       - main
       - docker
       - update-9-6
-      - restart-script
     tags:
       - "v*"
 

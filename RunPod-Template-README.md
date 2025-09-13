@@ -1,4 +1,4 @@
-# Wan2GP - AI Video Generation Template
+# Wan2GP - AI Image and Video Generation Template
 
 #### Last Updated on 9/6/2025 to v8.4 - Take me to Outer Space
 
@@ -12,7 +12,7 @@ WAN2GP (aka "Wan for the GPU Poor") is a free, open-source tool that lets you ge
 
 ## What This Template Provides
 
-This RunPod template is an extenstion of the official Runpod Pytorch 2.8.0 template. It gives you a fully configured environment with:
+This template is an extenstion of the official Runpod Pytorch 2.8.0 template. It gives you a fully configured environment with:
 
 - ✅ **Wan2GP Application** - Ready to use on port 7862 (password protected)
 - ✅ **Jupyter Lab** - Development environment on port 8888
@@ -43,7 +43,7 @@ This RunPod template is an extenstion of the official Runpod Pytorch 2.8.0 templ
 
 #### Custom Authentication (Optional)
 
-To use your own login credentials, set environment variables in your RunPod template:
+To use your own login credentials, set environment variables in the template:
 
 ```
 WAN2GP_USERNAME=your_username
@@ -104,7 +104,7 @@ If you want to update the Wan2GP application to the latest version of Wan2GP wit
 > 🛑 **DANGER: This is an advanced feature and can break your pod.**
 >
 > - **No Automatic Rollback:** If the update fails or introduces bugs, there is no automatic way to go back. Your pod may become unusable.
-> - **Untested Code:** You are pulling the latest code from the Wan2GP repository, which has not been tested in this specific RunPod environment. It may have new dependencies or bugs that cause the application to fail.
+> - **Untested Code:** You are pulling the latest code from the Wan2GP repository, which has not been tested in this specific environment. It may have new dependencies or bugs that cause the application to fail.
 > - **Restarting Pod:** If you stop and restart your pod after updating, you should run the update script again on restart. Otherwise, you could have mismatched python dependency versions.
 
 To run the live update:
