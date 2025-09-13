@@ -221,52 +221,68 @@ def cleanup_temp_audio_files(audio_tracks, verbose=False):
     return deleted_count
 
 
-def save_video(tensor,
-                save_file=None,
-                fps=30,
-                codec_type='libx264_8',
-                container='mp4',
-                nrow=8,
-                normalize=True,
-                value_range=(-1, 1),
-                retry=5):
-    """Save tensor as video with configurable codec and container options."""
-        
+def save_video(
+    tensor,
+    save_file=None,
+    fps=30,
+    codec_type='libx264_8',
+    container='mp4',
+    nrow=8,
+    normalize=True,
+    value_range=(-1, 1),
+    retry=5,
+):
+    """Save tensor as video with configurable codec and container options.
+
+    Memory-optimized: streams frames to the writer instead of materializing
+    the whole video array in RAM.
+    Expects a 5D tensor shaped [B, C, T, H, W] when a tensor is provided.
+    """
+
     suffix = f'.{container}'
     cache_file = osp.join('/tmp', rand_name(suffix=suffix)) if save_file is None else save_file
     if not cache_file.endswith(suffix):
         cache_file = osp.splitext(cache_file)[0] + suffix
-    
+
     # Configure codec parameters
     codec_params = _get_codec_params(codec_type, container)
-    
-    # Process and save
+
     error = None
     for _ in range(retry):
+        writer = None
         try:
-            if torch.is_tensor(tensor):
-                # Preprocess tensor
-                tensor = tensor.clamp(min(value_range), max(value_range))
-                tensor = torch.stack([
-                    torchvision.utils.make_grid(u, nrow=nrow, normalize=normalize, value_range=value_range)
-                    for u in tensor.unbind(2)
-                ], dim=1).permute(1, 2, 3, 0)
-                tensor = (tensor * 255).type(torch.uint8).cpu()
-                arrays = tensor.numpy()
-            else:
-                arrays = tensor
-
             # Write video (silence ffmpeg logs)
             writer = imageio.get_writer(cache_file, fps=fps, ffmpeg_log_level='error', **codec_params)
-            for frame in arrays:
-                writer.append_data(frame)
-        
+
+            if torch.is_tensor(tensor):
+                # Expect [B, C, T, H, W]. Clamp once and move to CPU lazily per frame.
+                t = tensor
+                # Clamp in-place-friendly flow without creating huge temporaries
+                t = t.clamp(min(value_range), max(value_range))
+                # Iterate over frames (unbind along T, which is dim=2)
+                for u in t.unbind(2):  # u: [B, C, H, W]
+                    grid = torchvision.utils.make_grid(
+                        u, nrow=nrow, normalize=normalize, value_range=value_range
+                    )  # [C, H, W]
+                    frame = (grid * 255).to(torch.uint8).cpu().permute(1, 2, 0).numpy()
+                    writer.append_data(frame)
+            else:
+                # Assume iterable of numpy frames already prepared
+                for frame in tensor:
+                    writer.append_data(frame)
+
             writer.close()
+            writer = None
             return cache_file
-            
+
         except Exception as e:
             error = e
             print(f"error saving {save_file}: {e}")
+            if writer is not None:
+                try:
+                    writer.close()
+                except Exception:
+                    pass
 
 
 def _get_codec_params(codec_type, container):

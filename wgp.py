@@ -5039,7 +5039,8 @@ def generate_video(
                 if isinstance(samples, dict):
                     overlapped_latents = samples.get("latent_slice", None)
                     samples= samples["x"]
-                samples = samples.to("cpu")
+                # Move once to CPU and detach to minimize RAM churn
+                samples = samples.detach().cpu()
             clear_gen_cache()
             offloadobj.unload_all()
             gc.collect()
@@ -5056,7 +5057,9 @@ def generate_video(
                 state["prompt"] = ""
                 send_cmd("output")  
             else:
-                sample = samples.cpu()
+                # Already on CPU from the earlier conversion
+                sample = samples
+                samples = None  # release reference early to reduce peak RAM
                 # if True: # for testing
                 #     torch.save(sample, "output.pt")
                 # else:
