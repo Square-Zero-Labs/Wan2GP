@@ -1,6 +1,6 @@
 # Wan2GP - AI Image and Video Generation Template
 
-#### Last Updated on 9/6/2025 to v8.4 - Take me to Outer Space
+#### Last Updated on 9/15/2025 to v8.6 - Attack of the Clones
 
 ### _This template has been tested with an A40_
 
