@@ -1,6 +1,6 @@
 # Wan2GP - AI Image and Video Generation Template
 
-#### Last Updated on 9/24/2025 to v8.71 - Here Are Two New Contenders in the Vace Arena! + Fixes
+#### Last Updated on 9/25/2025 to v8.74 - Here Are Two New Contenders in the Vace Arena! + Fixes
 
 ### _This template has been tested with an A40_
 
