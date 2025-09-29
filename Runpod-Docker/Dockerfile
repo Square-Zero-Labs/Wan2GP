@@ -33,9 +33,9 @@ RUN sed -i -e 's/^torch>=/#torch>=/' -e 's/^torchvision>=/#torchvision>=/' /opt/
     && rm -rf /root/.cache/pip
 
 # Copy and set up our startup and update scripts
-COPY start-wan2gp.sh /usr/local/bin/start-wan2gp.sh
-COPY update-wan2gp.sh /usr/local/bin/update-wan2gp.sh
-COPY restart-wan2gp.sh /usr/local/bin/restart-wan2gp.sh
+COPY Runpod-Docker/start-wan2gp.sh /usr/local/bin/start-wan2gp.sh
+COPY Runpod-Docker/update-wan2gp.sh /usr/local/bin/update-wan2gp.sh
+COPY Runpod-Docker/restart-wan2gp.sh /usr/local/bin/restart-wan2gp.sh
 RUN chmod +x /usr/local/bin/start-wan2gp.sh \
     && chmod +x /usr/local/bin/update-wan2gp.sh \
     && chmod +x /usr/local/bin/restart-wan2gp.sh
