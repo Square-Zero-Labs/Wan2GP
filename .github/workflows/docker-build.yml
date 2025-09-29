@@ -6,6 +6,7 @@ on:
       - main
       - docker
       - update-9-25
+      - reorganize-docker
     tags:
       - "v*"
 
@@ -62,7 +63,8 @@ jobs:
       - name: Build and push Docker image
         uses: docker/build-push-action@v5
         with:
-          context: .
+          context: Runpod-Docker
+          file: Dockerfile
           platforms: linux/amd64
           push: ${{ github.event_name != 'pull_request' }}
           tags: ${{ steps.meta.outputs.tags }}
