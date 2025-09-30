@@ -6,7 +6,6 @@ on:
       - main
       - docker
       - update-9-25
-      - reorganize-docker
     tags:
       - "v*"
 
