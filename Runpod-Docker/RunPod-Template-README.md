@@ -1,6 +1,6 @@
 # Wan2GP - AI Image and Video Generation Template
 
-#### Last Updated on 10/22/2025 to WanGP v9.10, What else will you ever need after this one ?
+#### Last Updated on 10/22/2025 to WanGP v9.21, Why isn't all my VRAM used?
 
 ### _This template has been tested with an A40_
 
