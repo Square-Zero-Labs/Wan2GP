@@ -1,6 +1,6 @@
 # Wan2GP - AI Image and Video Generation Template
 
-#### Last Updated on 11/22/2025 to WanGP v9.52, And there was motion
+#### Last Updated on 11/24/2025 to WanGP v9.62, The Return of the King
 
 ### _This template has been tested with an A40_
 
