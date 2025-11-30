@@ -16,16 +16,16 @@ Use this quick reference to capture the key settings and workflow from [the comp
 ### LightX2V
 
 ```bash
-curl -L \
-  -o /workspace/Wan2GP/loras_i2v/lightx2v_I2V_14B_480p_cfg_step_distill_rank64_bf16.safetensors \
+curl -L --create-dirs \
+  -o /workspace/Wan2GP/loras/wan_i2v/lightx2v_I2V_14B_480p_cfg_step_distill_rank64_bf16.safetensors \
   https://huggingface.co/Kijai/WanVideo_comfy/resolve/main/Lightx2v/lightx2v_I2V_14B_480p_cfg_step_distill_rank64_bf16.safetensors?download=true
 ```
 
 ### FusionX
 
 ```bash
-curl -L \
-  -o /workspace/Wan2GP/loras_i2v/Wan2.1_I2V_14B_FusionX_LoRA.safetensors \
+curl -L --create-dirs \
+  -o /workspace/Wan2GP/loras/wan_i2v/Wan2.1_I2V_14B_FusionX_LoRA.safetensors \
   https://huggingface.co/DeepBeepMeep/Wan2.1/resolve/main/loras_accelerators/Wan2.1_I2V_14B_FusionX_LoRA.safetensors
 ```
 
