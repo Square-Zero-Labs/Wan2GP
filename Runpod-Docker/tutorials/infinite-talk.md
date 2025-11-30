@@ -7,8 +7,8 @@ Use this quick reference to capture the key settings and workflow from [the comp
 ### FusionX
 
 ```bash
-curl -L \
-  -o /workspace/Wan2GP/loras_i2v/Wan2.1_I2V_14B_FusionX_LoRA.safetensors \
+curl -L --create-dirs \
+  -o /workspace/Wan2GP/loras/wan_i2v/Wan2.1_I2V_14B_FusionX_LoRA.safetensors \
   https://huggingface.co/DeepBeepMeep/Wan2.1/resolve/main/loras_accelerators/Wan2.1_I2V_14B_FusionX_LoRA.safetensors
 ```
 
