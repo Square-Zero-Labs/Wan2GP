@@ -22,6 +22,7 @@ When calling the download script, it will use this environment variable for auth
 
     ```bash
     curl -L --create-dirs \
+      ${HUGGINGFACE_HUB_TOKEN:+-H "Authorization: Bearer $HUGGINGFACE_HUB_TOKEN"} \
       -o /workspace/Wan2GP/loras/wan_5B/wan22_5b_i2v_crush_it_lora.safetensors \
       https://huggingface.co/ostris/wan22_5b_i2v_crush_it_lora/resolve/main/wan22_5b_i2v_crush_it_lora.safetensors
     echo "✅ Download complete → /workspace/Wan2GP/loras/wan_5B"
