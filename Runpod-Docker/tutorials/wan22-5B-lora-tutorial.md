@@ -18,25 +18,13 @@ When calling the download script, it will use this environment variable for auth
 
 2.  **Download the LoRA**
 
-    This command will install the necessary Python library and then download the LoRA model files into the correct directory (`/workspace/Wan2GP/loras/5B`). If the directory does not exist, it will be created automatically.
+    Download the LoRA directly into the correct directory (`/workspace/Wan2GP/loras/wan_5B`). If the directory does not exist, it will be created automatically.
 
     ```bash
-    python -m pip install -q --no-cache-dir huggingface_hub
-
-    python - <<'PY'
-    import os
-    from huggingface_hub import snapshot_download
-
-    snapshot_download(
-        repo_id="ostris/wan22_5b_i2v_crush_it_lora",
-        allow_patterns=["*.safetensors"],
-        local_dir="/workspace/Wan2GP/loras/5B",  # write directly into Wan2GP's LoRA dir
-        local_dir_use_symlinks=False,            # real file, not a symlink
-        resume_download=True,                    # safe on flaky connections
-        token=os.environ.get("HUGGINGFACE_HUB_TOKEN"),  # optional; uses env var if set
-    )
-    print("✅ Download complete → /workspace/Wan2GP/loras/5B")
-    PY
+    curl -L --create-dirs \
+      -o /workspace/Wan2GP/loras/wan_5B/wan22_5b_i2v_crush_it_lora.safetensors \
+      https://huggingface.co/ostris/wan22_5b_i2v_crush_it_lora/resolve/main/wan22_5b_i2v_crush_it_lora.safetensors
+    echo "✅ Download complete → /workspace/Wan2GP/loras/wan_5B"
     ```
 
 ## Step 2: Generate a video with the LoRA
