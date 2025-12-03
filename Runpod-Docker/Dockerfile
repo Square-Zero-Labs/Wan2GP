@@ -23,7 +23,7 @@ RUN rm -f /etc/apt/sources.list.d/cuda*.list && \
 # Clone the application source code to a "safe" location that won't be volume-mounted.
 RUN git clone https://github.com/deepbeepmeep/Wan2GP.git /opt/wan2gp_source \
     && cd /opt/wan2gp_source \
-    && git checkout 294f60b4a674a1ffb3b08ce76e0e653f13376c67
+    && git checkout 66477ab087f721c6a84a0da3225fdfe120552b9a
 # Install Python dependencies from the source code.
 # The GitHub Actions workflow is configured to maximize build space, so we can
 # now use a single, clean RUN command for better maintainability.
