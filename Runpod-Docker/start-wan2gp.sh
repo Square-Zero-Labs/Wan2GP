@@ -86,7 +86,7 @@ SERVER_PORT="7860"
 echo "Using our nginx proxy: nginx on 7862 → gradio on 7860"
 
 echo "Starting Wan2GP on $SERVER_NAME:$SERVER_PORT"
-nohup python3 wgp.py --server-name $SERVER_NAME --server-port $SERVER_PORT > /workspace/wan2gp.log 2>&1 &
+nohup python3 wgp.py --server-name $SERVER_NAME --server-port $SERVER_PORT --save-masks > /workspace/wan2gp.log 2>&1 &
 echo "Wan2GP started on internal port $SERVER_PORT, logs in /workspace/wan2gp.log"
 echo ""
 echo "🔐 AUTHENTICATION REQUIRED:"
