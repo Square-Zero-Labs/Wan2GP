@@ -86,7 +86,7 @@ echo "Dependencies updated."
 # Step 6: Restart the Wan2GP application with the new code.
 # This uses the same command as the original start-wan2gp.sh script.
 echo "Restarting Wan2GP application in the background..."
-nohup python3 wgp.py --server-name 127.0.0.1 --server-port 7860 > /workspace/wan2gp.log 2>&1 &
+nohup python3 wgp.py --server-name 127.0.0.1 --server-port 7860 --save-masks > /workspace/wan2gp.log 2>&1 &
 
 echo ""
 echo "✅ --- Wan2GP Update Complete ---"
