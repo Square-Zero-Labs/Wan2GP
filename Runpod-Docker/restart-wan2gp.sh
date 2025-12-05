@@ -45,7 +45,7 @@ fi
 
 echo "Starting Wan2GP in background..."
 cd /workspace/Wan2GP
-nohup python3 wgp.py --server-name 127.0.0.1 --server-port 7860 > /workspace/wan2gp.log 2>&1 &
+nohup python3 wgp.py --server-name 127.0.0.1 --server-port 7860 --save-masks > /workspace/wan2gp.log 2>&1 &
 
 echo "✅ Wan2GP restarted. Monitor logs with: tail -f /workspace/wan2gp.log"
 
