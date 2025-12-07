@@ -1,6 +1,7 @@
 import argparse
 import os
 import sys
+import concurrent.futures
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Dict, List, Tuple, Union
@@ -81,16 +82,35 @@ def _frames_to_tensor(frames: List[np.ndarray]) -> torch.Tensor:
     """Convert a list of RGB uint8 frames to a tensor in [-1, 1] with shape 3,F,H,W."""
     if not frames:
         return torch.empty(0)
-    arr = np.stack(frames).astype(np.float32) / 127.5 - 1.0
-    return torch.from_numpy(arr).permute(3, 0, 1, 2)
+    t0 = time.perf_counter()
+    first_shape = frames[0].shape if frames else "n/a"
+    print(f"[pose_align] _frames_to_tensor: stacking {len(frames)} frames of shape {first_shape}", flush=True)
+    try:
+        arr = np.stack(frames)
+    except Exception as e:
+        print(f"[pose_align] _frames_to_tensor: np.stack failed: {type(e).__name__}: {e}", flush=True)
+        raise
+    t1 = time.perf_counter()
+    arr = arr.astype(np.float32) / 127.5 - 1.0
+    t2 = time.perf_counter()
+    try:
+        t = torch.from_numpy(arr).permute(3, 0, 1, 2)
+    except Exception as e:
+        print(f"[pose_align] _frames_to_tensor: torch.from_numpy failed: {type(e).__name__}: {e}", flush=True)
+        raise
+    t3 = time.perf_counter()
+    print(f"[pose_align] _frames_to_tensor: stack_time={t1 - t0:.3f}s normalize_time={t2 - t1:.3f}s torch_time={t3 - t2:.3f}s tensor shape={t.shape} dtype={t.dtype}", flush=True)
+    return t
 
 
 def _tensor_to_frames(tensor: torch.Tensor) -> List[np.ndarray]:
     """Convert a tensor in [-1, 1] shaped 3,F,H,W back to RGB uint8 frames."""
     if tensor.numel() == 0:
         return []
+    print(f"[pose_align] _tensor_to_frames: input tensor shape={tensor.shape} dtype={tensor.dtype}", flush=True)
     arr = tensor.permute(1, 2, 3, 0).cpu().numpy()
     arr = ((arr + 1.0) * 127.5).clip(0, 255).astype(np.uint8)
+    print(f"[pose_align] _tensor_to_frames: returning {arr.shape[0]} frames of shape {arr[0].shape if arr.shape[0] else 'n/a'}", flush=True)
     return [frame for frame in arr]
 
 
@@ -155,6 +175,7 @@ def _augment_pose(
     fixed_params: Tuple[float, float, float, float] | None = None,
 ) -> Dict:
     """Lightweight pose jitter used by the diff-aug variant."""
+    print(f"[pose_align] _augment_pose: offsets={offset_x}/{offset_y} scale_range={scale_range} aspect_range={aspect_ratio_range} fixed={fixed_params}", flush=True)
     pose_aug = {
         "bodies": {"candidate": pose["bodies"]["candidate"].copy(), "subset": pose["bodies"]["subset"].copy()},
         "hands": pose["hands"].copy(),
@@ -170,6 +191,7 @@ def _augment_pose(
         dy = np.random.uniform(offset_y[0], offset_y[1])
     else:
         dx, dy, scale_x, scale_y = fixed_params
+    print(f"[pose_align] _augment_pose: using dx={dx:.4f}, dy={dy:.4f}, scale_x={scale_x:.4f}, scale_y={scale_y:.4f}", flush=True)
 
     def _apply(arr: np.ndarray) -> np.ndarray:
         arr = arr.copy()
@@ -319,25 +341,46 @@ class PoseDetection:
 
 class PoseAligner:
     def __init__(self, detect_resolution: int = 1024, device: str = None, detection_workers: int = 2) -> None:
+        print(f"[pose_align] initializing PoseAligner | detect_resolution={detect_resolution}", flush=True)
+        print(f"[pose_align] torch.cuda.is_available={torch.cuda.is_available()}", flush=True)
+        resolved_device = device or ("cuda:0" if torch.cuda.is_available() else "cpu")
+        print(f"[pose_align] resolved device={resolved_device}", flush=True)
+        try:
+            import onnxruntime as ort
+            print(f"[pose_align] onnxruntime available providers={ort.get_available_providers()}", flush=True)
+        except Exception as e:
+            print(f"[pose_align] onnxruntime provider check failed: {type(e).__name__}: {e}", flush=True)
         det_model = fl.locate_file("pose/yolox_l.onnx")
         pose_model = fl.locate_file("pose/dw-ll_ucoco_384.onnx")
-        resolved_device = device or ("cuda:0" if torch.cuda.is_available() else "cpu")
         self.det_model = det_model
         self.pose_model = pose_model
         self.device = resolved_device
         self.pose_estimation = Wholebody(det_model, pose_model, device=resolved_device)
+        try:
+            det_providers = getattr(self.pose_estimation.session_det, "get_providers", lambda: [])()
+            pose_providers = getattr(self.pose_estimation.session_pose, "get_providers", lambda: [])()
+            print(f"[pose_align] Wholebody session_det providers: {det_providers}", flush=True)
+            print(f"[pose_align] Wholebody session_pose providers: {pose_providers}", flush=True)
+        except Exception as e:
+            print(f"[pose_align] failed to read Wholebody providers: {type(e).__name__}: {e}", flush=True)
         self.detection_workers = max(1, int(detection_workers))
         self.detect_resolution = detect_resolution
 
     def _detect_pose_session(self, image: ArrayImage, pose_estimation: Wholebody) -> PoseDetection | None:
+        print("[pose_align] _detect_pose_session: starting conversion to BGR", flush=True)
         bgr_orig = _to_bgr_image(image)
+        print(f"[pose_align] _detect_pose_session: converted image shape={bgr_orig.shape}, dtype={bgr_orig.dtype}", flush=True)
         resized = resize_image(bgr_orig, self.detect_resolution)
+        print(f"[pose_align] _detect_pose_session: resized to {resized.shape}", flush=True)
         H, W, _ = resized.shape
         candidate, subset, _ = pose_estimation(resized)
+        print(f"[pose_align] _detect_pose_session: pose_estimation returned candidate shape={getattr(candidate, 'shape', None)}, subset shape={getattr(subset, 'shape', None)}", flush=True)
         if len(candidate) == 0:
+            print("[pose_align] _detect_pose_session: no candidates found", flush=True)
             return None
 
         nums, keys, locs = candidate.shape
+        print(f"[pose_align] _detect_pose_session: nums={nums}, keys={keys}, locs={locs}", flush=True)
         if keys < 18:
             return None  # not enough keypoints detected
         
@@ -403,6 +446,31 @@ class PoseAligner:
 
     def _detect_pose(self, image: ArrayImage) -> PoseDetection | None:
         return self._detect_pose_session(image, self.pose_estimation)
+
+    def _detect_pose_with_timeout(self, image: ArrayImage, timeout_s: float, pose_estimation: Wholebody | None = None, frame_idx: int | None = None, detector_idx: int | None = None, verbose: int = 0) -> PoseDetection | None:
+        """Run pose detection with a timeout to avoid hanging the pipeline."""
+        detector = pose_estimation or self.pose_estimation
+        with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
+            future = executor.submit(self._detect_pose_session, image, detector)
+            try:
+                if verbose:
+                    print(f"[pose_align] detecting frame {frame_idx if frame_idx is not None else '?'} (detector {detector_idx if detector_idx is not None else 0}) on device {self.device} with timeout {timeout_s}s", flush=True)
+                t0 = time.perf_counter()
+                result = future.result(timeout=timeout_s)
+                if verbose:
+                    dt = time.perf_counter() - t0
+                    print(f"[pose_align] detection success frame {frame_idx if frame_idx is not None else '?'} in {dt:.2f}s", flush=True)
+                return result
+            except concurrent.futures.TimeoutError:
+                print(f"[pose_align] detection timeout on frame {frame_idx} (detector {detector_idx}); timeout_s={timeout_s}", flush=True)
+                raise RuntimeError(f"Pose detection timed out after {timeout_s} seconds"
+                                   f"{'' if frame_idx is None else f' on frame {frame_idx}'}"
+                                   f"{'' if detector_idx is None else f' (detector {detector_idx})'}")
+            except Exception as e:
+                print(f"[pose_align] detection failure on frame {frame_idx} (detector {detector_idx}): {type(e).__name__}: {e}", flush=True)
+                raise RuntimeError(f"Pose detection failed"
+                                   f"{'' if frame_idx is None else f' on frame {frame_idx}'}"
+                                   f"{'' if detector_idx is None else f' (detector {detector_idx})'}: {type(e).__name__}: {e}") from e
 
     def _compute_alignment(self, ref_pose: Dict, first_pose: Dict, ref_ratio: float, video_ratio: float) -> Tuple[Dict, np.ndarray]:
         body_ref = ref_pose["bodies"]["candidate"].copy()
@@ -516,12 +584,20 @@ class PoseAligner:
         resize_ref_video: bool = False,
         detection_chunk_size: int = 8,
         expand_scale = 0,
-        verbose: int = 0,
+        verbose: int = 1,
+        detection_timeout_s: float = 300.0,
     ) -> Dict[str, torch.Tensor]:
+        print("[pose_align] align() called", flush=True)
         t0 = time.perf_counter()
-        ref_detection = self._detect_pose(ref_image)
+        if verbose:
+            print(f"[pose_align] starting reference pose detection | frames={len(ref_video_frames)} | masks={'yes' if ref_video_mask is not None else 'no'} | detect_res={self.detect_resolution} | workers={self.detection_workers} | timeout={detection_timeout_s}s | device={self.device}", flush=True)
+            if ref_video_mask is not None:
+                print(f"[pose_align] ref_video_mask type={type(ref_video_mask)}", flush=True)
+        ref_detection = self._detect_pose_with_timeout(ref_image, detection_timeout_s, verbose=verbose)
         if ref_detection is None:
             raise ValueError("Unable to detect pose in the reference image.")
+        if verbose:
+            print("[pose_align] reference pose detection done", flush=True)
 
         target_hw = ref_detection.frame_rgb.shape[:2]
 
@@ -544,6 +620,8 @@ class PoseAligner:
         
         if isinstance(ref_video_frames, torch.Tensor):
             ref_video_frames = _tensor_video_to_list(ref_video_frames)
+            if verbose:
+                print(f"[pose_align] ref_video_frames converted from tensor -> list | len={len(ref_video_frames)}", flush=True)
         def _preprocess_item(idx_frame_mask):
             idx, frame, mask = idx_frame_mask
             # normalize mask here to leverage multithreading
@@ -571,8 +649,12 @@ class PoseAligner:
             if ref_video_mask is not None:
                 mask =  ref_video_mask[:, idx] if torch.is_tensor(ref_video_mask) else ref_video_mask[idx]
             items.append((idx, frame, mask))
+        if verbose:
+            print(f"[pose_align] _preprocess_item: first frame shape={items[0][1].shape if items else 'n/a'} first mask shape={None if not items or items[0][2] is None else getattr(items[0][2],'shape',None)}", flush=True)
         if cpu_resize_workers is None:
             cpu_resize_workers = max(1, int(os.cpu_count() / 2))
+        if verbose:
+            print(f"[pose_align] preprocessing {len(items)} frames with cpu_resize_workers={cpu_resize_workers} | resize_ref_video={resize_ref_video} | target_hw={target_hw}", flush=True)
         preprocessed = process_images_multithread(
             _preprocess_item,
             items,
@@ -581,6 +663,8 @@ class PoseAligner:
             max_workers=cpu_resize_workers,
             in_place=False,
         )
+        if verbose:
+            print(f"[pose_align] preprocess thread pool finished; preprocessed count={len(preprocessed)}", flush=True)
         idx_to_frame = {idx: frame for idx, frame in preprocessed}
         t_preprocess = time.perf_counter() - t0
         if verbose:
@@ -598,11 +682,15 @@ class PoseAligner:
         detectors = [self.pose_estimation]
         for _ in range(max(1, self.detection_workers) - 1):
             detectors.append(Wholebody(self.det_model, self.pose_model, device=self.device))
+        if verbose:
+            print(f"[pose_align] detectors instantiated={len(detectors)}", flush=True)
 
         sequential_done = False
         pending = []
         t_first_stage = 0.0
 
+        if verbose:
+            print(f"[pose_align] begin sequential detection loop | total_frames={len(idx_to_frame)}", flush=True)
         for idx in sorted(idx_to_frame.keys()):
             if idx < align_frame:
                 continue
@@ -611,9 +699,13 @@ class PoseAligner:
 
             frame = idx_to_frame[idx]
             t_detect_start = time.perf_counter()
-            detection = self._detect_pose(frame) if not sequential_done else None
+            detection = None
+            if not sequential_done:
+                detection = self._detect_pose_with_timeout(frame, detection_timeout_s, frame_idx=idx, verbose=verbose)
             if detection is None:
                 # queue for parallel path once we have align_args
+                if verbose:
+                    print(f"[pose_align] queued frame {idx} for pending detection")
                 pending.append((idx, frame))
                 continue
 
@@ -643,22 +735,34 @@ class PoseAligner:
                 video_frames.append(detection.frame_rgb)
                 video_pose_frames.append(detection.pose_map_rgb)
 
+            if verbose:
+                print(f"[pose_align] sequential frame {idx} appended | pose_list_len={len(pose_list)}", flush=True)
             sequential_done = True
             start_idx = idx + 1
             pending.extend([(j, idx_to_frame[j]) for j in sorted(idx_to_frame.keys()) if j >= start_idx])
             t_first_stage = time.perf_counter() - t_detect_start
             if verbose:
-                print(f"[pose_align] first frame detection+align done in {t_first_stage:.2f}s")
+                print(f"[pose_align] first frame detection+align done in {t_first_stage:.2f}s; pending={len(pending)}", flush=True)
             break
 
         if align_args is None:
+            print("[pose_align] align_args is None after sequential loop; returning empty tensors", flush=True)
             return {"composite": torch.empty(0), "pose_only": torch.empty(0), "pose_aug": torch.empty(0)}
+        else:
+            if verbose:
+                scales_stats = {k: float(v) for k, v in align_args.items()}
+                print(f"[pose_align] computed align_args: {scales_stats}", flush=True)
+                print(f"[pose_align] offset vector: {offset}", flush=True)
+                print(f"[pose_align] pending frames count after sequential stage: {len(pending)}", flush=True)
 
         # Parallel processing for remaining frames using a single persistent executor
         def _process_pending(item):
             idx, frame, det_idx = item
-            det = self._detect_pose_session(frame, detectors[det_idx])
+            if verbose:
+                print(f"[pose_align] _process_pending start idx={idx} det_idx={det_idx}", flush=True)
+            det = self._detect_pose_with_timeout(frame, detection_timeout_s, detectors[det_idx])
             if det is None:
+                print(f"[pose_align] _process_pending idx={idx} returned None detection", flush=True)
                 return idx, None, None, None
 
             pa = align_img(det.frame_rgb, det.pose, align_args)
@@ -677,6 +781,8 @@ class PoseAligner:
             pa["bodies"]["candidate"][:, 0] /= ref_ratio
             pa["hands"][:, :, 0] /= ref_ratio
             pa["faces"][:, :, 0] /= ref_ratio
+            if verbose:
+                print(f"[pose_align] _process_pending idx={idx} complete; shapes body={pa['bodies']['candidate'].shape} frame={det.frame_rgb.shape}", flush=True)
             return idx, pa, det.frame_rgb, det.pose_map_rgb
 
         if pending:
@@ -687,15 +793,31 @@ class PoseAligner:
             with ThreadPoolExecutor(max_workers=self.detection_workers) as executor:
                 for start in range(0, len(pending), detection_chunk_size * self.detection_workers):
                     chunk = pending[start : start + detection_chunk_size * self.detection_workers]
+                    if verbose:
+                        print(f"[pose_align] processing chunk starting at {start} of {len(pending)} pending frames", flush=True)
+                        print(f"[pose_align] chunk len={len(chunk)} | detection_workers={self.detection_workers} | detection_chunk_size={detection_chunk_size}", flush=True)
                     tasks = []
                     for idx, frame in chunk:
                         tasks.append((idx, frame, next(det_cycle)))
                     futures = {executor.submit(_process_pending, t): t[0] for t in tasks}
-                    for future in as_completed(futures):
-                        res = future.result()
+                    if verbose:
+                        print(f"[pose_align] submitted {len(futures)} futures for chunk starting {start}", flush=True)
+                    for future in as_completed(futures, timeout=detection_timeout_s * len(futures) if futures else None):
+                        try:
+                            res = future.result(timeout=detection_timeout_s)
+                            if verbose:
+                                print(f"[pose_align] future completed idx={futures[future]} | res_none={res[1] is None}", flush=True)
+                        except concurrent.futures.TimeoutError:
+                            print(f"[pose_align] timeout while awaiting future idx={futures.get(future)}", flush=True)
+                            raise RuntimeError(f"Pose detection timed out after {detection_timeout_s} seconds while processing pending frames")
+                        except Exception as e:
+                            print(f"[pose_align] exception in future idx={futures.get(future)}: {type(e).__name__}: {e}", flush=True)
+                            raise
                         if res[1] is None:
                             continue
                         results.append(res)
+                    if verbose:
+                        print(f"[pose_align] chunk starting at {start} complete; accumulated results={len(results)}", flush=True)
             for idx, pa, fr, pm in sorted(results, key=lambda x: x[0]):
                 if max_frames is not None and len(pose_list) >= max_frames:
                     break
@@ -703,13 +825,18 @@ class PoseAligner:
                 if include_composite:
                     video_frames.append(fr)
                     video_pose_frames.append(pm)
+                if verbose:
+                    print(f"[pose_align] appended result idx={idx} | pose_list_len={len(pose_list)} | video_frames_len={len(video_frames)}", flush=True)
             t_parallel = time.perf_counter() - t0 - t_preprocess - t_first_stage
             if verbose:
-                print(f"[pose_align] parallel detection done in {t_parallel:.2f}s")
+                print(f"[pose_align] parallel detection done in {t_parallel:.2f}s; processed={len(results)}", flush=True)
         else:
             t_parallel = 0.0
+            if verbose:
+                print("[pose_align] no pending frames for parallel processing", flush=True)
 
         if not pose_list:
+            print("[pose_align] pose_list empty after processing; returning", flush=True)
             return {"composite": torch.empty(0), "pose_only": torch.empty(0), "pose_aug": torch.empty(0)}
 
         body_seq = [_ensure_xyz(pose["bodies"]["candidate"][:18]) for pose in pose_list]
@@ -754,6 +881,8 @@ class PoseAligner:
             aligned_pose = draw_pose(pose_for_draw, ref_H, ref_W, use_body=True, use_hand=True, use_face=False)
             aligned_pose = cv2.cvtColor(aligned_pose, cv2.COLOR_BGR2RGB)
             pose_only_frames.append(aligned_pose)
+            if verbose and i % 10 == 0:
+                print(f"[pose_align] assembled pose_only frame {i}/{len(body_seq)} shape={aligned_pose.shape}", flush=True)
 
             aug_frame = None
             if augment:
@@ -793,13 +922,30 @@ class PoseAligner:
         t_render = time.perf_counter() - t0 - t_preprocess - t_first_stage - t_parallel
         t_total = time.perf_counter() - t0
         if verbose:
-            print(f"[pose_align] render done in {t_render:.2f}s; total {t_total:.2f}s")
+            print(f"[pose_align] render done in {t_render:.2f}s; total {t_total:.2f}s; pose_frames={len(pose_only_frames)}; aug_frames={len(pose_aug_frames)}", flush=True)
+            if include_composite:
+                print(f"[pose_align] composite_frames len={len(composite_frames)}", flush=True)
+            print(f"[pose_align] pose_only_frames first shape: {pose_only_frames[0].shape if pose_only_frames else 'n/a'}", flush=True)
+            print(f"[pose_align] pose_aug_frames first shape: {pose_aug_frames[0].shape if pose_aug_frames else 'n/a'}", flush=True)
+            print(f"[pose_align] final pose_list_len={len(pose_list)} video_frames_len={len(video_frames)} video_pose_frames_len={len(video_pose_frames)}", flush=True)
 
-        return {
-            "composite": _frames_to_tensor(composite_frames) if include_composite else torch.empty(0),
-            "pose_only": _frames_to_tensor(pose_only_frames),
-            "pose_aug": _frames_to_tensor(pose_aug_frames) if augment else torch.empty(0),
+        outputs = {
+            "composite": None,
+            "pose_only": None,
+            "pose_aug": None,
         }
+        print(f"[pose_align] converting pose_only_frames -> tensor; count={len(pose_only_frames)}", flush=True)
+        outputs["pose_only"] = _frames_to_tensor(pose_only_frames)
+        print(f"[pose_align] converting pose_aug_frames -> tensor; count={len(pose_aug_frames)} augment={augment}", flush=True)
+        outputs["pose_aug"] = _frames_to_tensor(pose_aug_frames) if augment else torch.empty(0)
+        if include_composite:
+            print(f"[pose_align] converting composite_frames -> tensor; count={len(composite_frames)}", flush=True)
+            outputs["composite"] = _frames_to_tensor(composite_frames)
+        else:
+            outputs["composite"] = torch.empty(0)
+        if verbose:
+            print(f"[pose_align] outputs tensor shapes: composite={outputs['composite'].shape} pose_only={outputs['pose_only'].shape} pose_aug={outputs['pose_aug'].shape}", flush=True)
+        return outputs
 
 
 def load_video_frames(path: str) -> Tuple[List[np.ndarray], float]:

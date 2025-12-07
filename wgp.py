@@ -5518,7 +5518,11 @@ def generate_video(
                 if custom_preprocessor is not None:
                     status_info = custom_preprocessor
                     send_cmd("progress", [0, get_latest_status(state, status_info)])
+                    print(f"[pose_align debug] entering custom_preprocess_video_with_mask | frames={guide_frames_extract_count} | start={guide_frames_extract_start} | fps={fps} | size={image_size}", flush=True)
+                    _t_pose_align = time.perf_counter()
                     video_guide_processed, video_guide_processed2, video_mask_processed, video_mask_processed2 =  custom_preprocess_video_with_mask(model_handler, base_model_type, pre_video_guide, video_guide if sparse_video_image is None else sparse_video_image, video_mask, height=image_size[0], width = image_size[1], max_frames= guide_frames_extract_count, start_frame = guide_frames_extract_start, fit_canvas = sample_fit_canvas, fit_crop = fit_crop, target_fps = fps,  block_size = block_size, expand_scale = mask_expand)
+                    _t_pose_align_done = time.perf_counter()
+                    print(f"[pose_align debug] custom_preprocess_video_with_mask returned in {_t_pose_align_done - _t_pose_align:.2f}s | video_guide_processed={None if video_guide_processed is None else video_guide_processed.shape} | video_guide_processed2={None if video_guide_processed2 is None else video_guide_processed2.shape}", flush=True)
                 else:
                     status_info = "Extracting " + processes_names[preprocess_type]
                     extra_process_list = ([] if preprocess_type2==None else [preprocess_type2]) + ([] if process_outside_mask==None or process_outside_mask == preprocess_type else [process_outside_mask])
@@ -5590,12 +5594,15 @@ def generate_video(
                 any_guide_padding = model_def.get("pad_guide_video", False)
                 dont_cat_preguide = extract_guide_from_window_start or model_def.get("dont_cat_preguide", False) or sparse_video_image is not None 
                 from shared.utils.utils import prepare_video_guide_and_mask
+                _t_prepare = time.perf_counter()
                 src_videos, src_masks = prepare_video_guide_and_mask(   [video_guide_processed] + ([] if video_guide_processed2 is None else [video_guide_processed2]), 
                                                                         [video_mask_processed] + ([] if video_guide_processed2 is None else [video_mask_processed2]),
                                                                         None if dont_cat_preguide else pre_video_guide, 
                                                                         image_size, current_video_length, latent_size,
                                                                         any_mask, any_guide_padding, guide_inpaint_color, 
                                                                         keep_frames_parsed, frames_to_inject_parsed , outpainting_dims)
+                _t_prepare_done = time.perf_counter()
+                print(f"[pose_align debug] prepare_video_guide_and_mask took {_t_prepare_done - _t_prepare:.2f}s | src_video_shapes={[None if v is None else v.shape for v in src_videos]} | src_mask_shapes={[None if m is None else m.shape for m in src_masks]}", flush=True)
                 video_guide_processed = video_guide_processed2 = video_mask_processed = video_mask_processed2 = None
                 if len(src_videos) == 1:
                     src_video, src_video2, src_mask, src_mask2 = src_videos[0], None, src_masks[0], None 
@@ -5674,6 +5681,11 @@ def generate_video(
                 gen["header_text"] = txt
                 send_cmd("output")
 
+            if verbose_level >= 1:
+                def _shape(x):
+                    return None if x is None else tuple(x.shape)
+                print(f"[pose_align debug] entering generation | window={window_no}/{total_windows} | frames={current_video_length} | image_size={image_size} | fps={fps} | src_video={_shape(src_video)} | src_video2={_shape(src_video2)} | src_mask={_shape(src_mask)} | pre_video_guide={_shape(pre_video_guide)} | reuse_frames={reuse_frames}", flush=True)
+            _t_generate = time.perf_counter()
             try:
                 samples = wan_model.generate(
                     input_prompt = prompt,
@@ -5760,6 +5772,8 @@ def generate_video(
                     pace=pace,
                     temperature=temperature,
                 )
+                if verbose_level >= 1:
+                    print(f"[pose_align debug] generation returned in {time.perf_counter() - _t_generate:.2f}s | samples={('None' if samples is None else 'ok')} | window={window_no}", flush=True)
             except Exception as e:
                 if len(control_audio_tracks) > 0 or len(source_audio_tracks) > 0:
                     cleanup_temp_audio_files(control_audio_tracks + source_audio_tracks)
