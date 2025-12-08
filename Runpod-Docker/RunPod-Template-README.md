@@ -1,6 +1,6 @@
 # Wan2GP - AI Image and Video Generation Template
 
-#### Last Updated on 12/4/2025 to WanGP v9.74, The Alpha & the Omega and the Dancer
+#### Last Updated on 12/8/2025 to WanGP v9.81, Simple Pleasures
 
 ### _This template has been tested with an A40_
 
