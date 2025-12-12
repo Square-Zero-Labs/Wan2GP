@@ -1,6 +1,6 @@
 # Wan2GP - AI Image and Video Generation Template
 
-#### Last Updated on 12/8/2025 to WanGP v9.81, Simple Pleasures
+#### Last Updated on 12/12/2025 to WanGP v9.84, Wan-Move Support
 
 ### _This template has been tested with an A40_
 
