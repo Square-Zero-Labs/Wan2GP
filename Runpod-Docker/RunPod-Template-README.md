@@ -1,6 +1,6 @@
 # Wan2GP - AI Image and Video Generation Template
 
-#### Last Updated on 1/7/2026 to WanGP v10.10, Spoiled Again (LTX-2)
+#### Last Updated on 1/7/2026 to WanGP v10.10, Spoiled Again (LTX-2) with updates
 
 ### _This template has been tested with an A40_
 
