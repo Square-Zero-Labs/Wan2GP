@@ -1,6 +1,6 @@
 # Wan2GP - AI Image and Video Generation Template
 
-#### Last Updated on 1/9/2026 to WanGP v10.11, LTX2 Use your own soundtrack
+#### Last Updated on 1/11/2026 to WanGP v10.20, When there is no VRAM left there is still some VRAM left ...
 
 ### _This template has been tested with an A40_
 
