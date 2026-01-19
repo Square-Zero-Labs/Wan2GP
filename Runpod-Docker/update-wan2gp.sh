@@ -70,6 +70,17 @@ git switch main
 git pull origin main
 echo "Successfully pulled latest code from the 'main' branch."
 
+# Restore custom finetune(s) baked into the image.
+CUSTOM_FINETUNE_SRC="/opt/wan2gp_source/finetunes/ltx2_distilled_old_vae.json"
+CUSTOM_FINETUNE_DST="/workspace/Wan2GP/finetunes/ltx2_distilled_old_vae.json"
+if [ -f "$CUSTOM_FINETUNE_SRC" ]; then
+    echo "Restoring custom finetune: ltx2_distilled_old_vae.json"
+    mkdir -p /workspace/Wan2GP/finetunes
+    cp "$CUSTOM_FINETUNE_SRC" "$CUSTOM_FINETUNE_DST"
+else
+    echo "Custom finetune source not found at $CUSTOM_FINETUNE_SRC, skipping."
+fi
+
 # The updated 'wgp.py' is now in place. We can remove the backup file.
 if [ -f "/workspace/Wan2GP/wgp.py.bak" ]; then
     rm /workspace/Wan2GP/wgp.py.bak
