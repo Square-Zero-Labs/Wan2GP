@@ -6,6 +6,7 @@ on:
       - main
       - docker
       - update-1-17-2026
+      - old-ltx2-vae
     tags:
       - "v*"
 
