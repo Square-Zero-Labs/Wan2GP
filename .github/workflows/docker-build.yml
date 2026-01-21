@@ -5,8 +5,7 @@ on:
     branches:
       - main
       - docker
-      - update-1-17-2026
-      - old-ltx2-vae
+      - update-1-20-2026
     tags:
       - "v*"
 
