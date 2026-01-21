@@ -1,6 +1,6 @@
 # Wan2GP - AI Image and Video Generation Template
 
-#### Last Updated on 1/11/2026 to WanGP v10.40, The Cost Saver
+#### Last Updated on 1/20/2026 to WanGP v10.42, Flux 2 klein, RAM optimizations & Text Encoder Cache
 
 ### _This template has been tested with an A40_
 
