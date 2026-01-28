@@ -23,7 +23,7 @@ RUN rm -f /etc/apt/sources.list.d/cuda*.list && \
 # Clone the application source code to a "safe" location that won't be volume-mounted.
 RUN git clone https://github.com/deepbeepmeep/Wan2GP.git /opt/wan2gp_source \
     && cd /opt/wan2gp_source \
-    && git checkout 25d9c6ee6aa3f7ef6bae9016e41f034bba391d38
+    && git checkout 48fc24b0b22a4e9395cb07d072e3a439f91ff012
 # Add custom finetunes after cloning upstream.
 COPY finetunes/ltx2_distilled_old_vae.json /opt/wan2gp_source/finetunes/ltx2_distilled_old_vae.json
 # Install Python dependencies from the source code.
