@@ -1,6 +1,6 @@
 # Wan2GP - AI Image and Video Generation Template
 
-#### Last Updated on 1/24/2026 to WanGP v10.51, Music for your Hearts
+#### Last Updated on 1/27/2026 to WanGP v 10.54: added Z Image Omnibase, prompt enhancers improvements, configurable loras root folder
 
 ### _This template has been tested with an A40_
 
