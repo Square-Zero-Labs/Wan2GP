@@ -30,6 +30,7 @@ storage/
 samples/
 !.gitignore
 !requirements.txt
+!.github/
 .DS_Store
 *DS_Store
 google/
@@ -51,3 +52,4 @@ settings/
 wgp_config.json
 plugins_local.json
 loras_url_cache.json
+*.log
