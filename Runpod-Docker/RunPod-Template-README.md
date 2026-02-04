@@ -1,6 +1,6 @@
 # Wan2GP - AI Image and Video Generation Template
 
-#### Last Updated on 2/1/2026 to WanGP v 10.60: Upgrade Time!
+#### Last Updated on 2/4/2026 to v10.70, Let's Get Ready To Rumble !
 
 ### _This template has been tested with an A40_
 
