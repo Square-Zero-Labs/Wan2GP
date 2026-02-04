@@ -33,6 +33,7 @@ from .utils.helpers import (
     latent_conditionings_by_latent_sequence,
     prepare_mask_injection,
     simple_denoising_func,
+    video_conditionings_by_guiding_latent_sequence,
     video_conditionings_by_keyframe,
 )
 from .utils.media_io import encode_video
@@ -208,16 +209,50 @@ class DistilledPipeline:
             tiling_config=tiling_config,
         )
         if video_conditioning:
-            stage_1_conditionings += video_conditionings_by_keyframe(
-                video_conditioning=video_conditioning,
-                height=stage_1_output_shape.height,
-                width=stage_1_output_shape.width,
-                num_frames=num_frames,
-                video_encoder=video_encoder,
-                dtype=dtype,
-                device=self.device,
-                tiling_config=tiling_config,
-            )
+            print("[LTX2][Distilled] video_conditioning entries:", len(video_conditioning))
+            per_frame_entries = []
+            keyframe_entries = []
+            for entry in video_conditioning:
+                if len(entry) == 2:
+                    video_path, strength = entry
+                    frame_idx = 0
+                elif len(entry) == 3:
+                    video_path, frame_idx, strength = entry
+                else:
+                    raise ValueError(
+                        "Video conditioning entries must be (video, strength) or (video, frame_idx, strength)."
+                    )
+                print("[LTX2][Distilled] control entry:", video_path, "frame_idx=", frame_idx, "strength=", strength)
+                if frame_idx < 0:
+                    keyframe_entries.append((video_path, frame_idx, strength))
+                else:
+                    per_frame_entries.append((video_path, frame_idx, strength))
+
+            if per_frame_entries:
+                print("[LTX2][Distilled] per-frame guiding enabled; entries:", len(per_frame_entries))
+                stage_1_conditionings += video_conditionings_by_guiding_latent_sequence(
+                    video_conditioning=per_frame_entries,
+                    height=stage_1_output_shape.height,
+                    width=stage_1_output_shape.width,
+                    num_frames=num_frames,
+                    video_encoder=video_encoder,
+                    dtype=dtype,
+                    device=self.device,
+                    tiling_config=tiling_config,
+                )
+
+            if keyframe_entries:
+                print("[LTX2][Distilled] keyframe injection enabled; entries:", len(keyframe_entries))
+                stage_1_conditionings += video_conditionings_by_keyframe(
+                    video_conditioning=keyframe_entries,
+                    height=stage_1_output_shape.height,
+                    width=stage_1_output_shape.width,
+                    num_frames=num_frames,
+                    video_encoder=video_encoder,
+                    dtype=dtype,
+                    device=self.device,
+                    tiling_config=tiling_config,
+                )
 
         mask_context = prepare_mask_injection(
             masking_source=masking_source,

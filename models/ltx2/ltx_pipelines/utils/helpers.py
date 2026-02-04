@@ -162,6 +162,39 @@ def video_conditionings_by_keyframe(
     return conditionings
 
 
+def video_conditionings_by_guiding_latent_sequence(
+    video_conditioning: list[tuple],
+    height: int,
+    width: int,
+    num_frames: int,
+    video_encoder: VideoEncoder,
+    dtype: torch.dtype,
+    device: torch.device,
+    tiling_config: TilingConfig | None = None,
+) -> list[ConditioningItem]:
+    conditionings = []
+    for entry in video_conditioning:
+        if len(entry) == 2:
+            video_path, strength = entry
+            frame_idx = 0
+        elif len(entry) == 3:
+            video_path, frame_idx, strength = entry
+        else:
+            raise ValueError("Video conditioning entries must be (video, strength) or (video, frame_idx, strength).")
+        video = load_video_conditioning(
+            video_path=video_path,
+            height=height,
+            width=width,
+            frame_cap=num_frames,
+            dtype=dtype,
+            device=device,
+        )
+        encoded_video = vae_encode_video(video, video_encoder, tiling_config)
+        cond = VideoConditionByKeyframeIndex(keyframes=encoded_video, frame_idx=frame_idx, strength=strength)
+        conditionings.append(cond)
+    return conditionings
+
+
 def latent_conditionings_by_latent_sequence(
     latents: torch.Tensor,
     strength: float = 1.0,
