@@ -358,6 +358,23 @@ class DistilledPipeline:
             device=self.device,
             tiling_config=tiling_config,
         )
+        for image_entry in images:
+            if len(image_entry) == 4:
+                image_path, frame_idx, _, resample = image_entry
+            else:
+                image_path, frame_idx, _ = image_entry
+                resample = None
+            if frame_idx == 0:
+                stage_2_conditionings += image_conditionings_by_replacing_latent(
+                    images=[(image_path, frame_idx, 1.0, resample)],
+                    height=stage_2_output_shape.height,
+                    width=stage_2_output_shape.width,
+                    video_encoder=video_encoder,
+                    dtype=dtype,
+                    device=self.device,
+                    tiling_config=tiling_config,
+                )
+                break
         if latent_conditioning_stage2 is not None:
             stage_2_conditionings += latent_conditionings_by_latent_sequence(
                 latent_conditioning_stage2,
