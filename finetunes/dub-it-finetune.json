@@ -1,0 +1,26 @@
+{
+    "model": {
+        "name": "LTX-2 JustDubIt Lip Dubbing",
+        "architecture": "ltx2_19B",
+        "description": "LTX-2 two-stage setup for lip dubbing with synchronized audio/video using the JustDubIt LoRA.",
+        "URLs": "ltx2_19B",
+        "preload_URLs": "ltx2_19B",
+        "loras": [
+            "https://huggingface.co/Lightricks/LTX-2/resolve/main/ltx-2-19b-distilled-lora-384.safetensors",
+            "https://huggingface.co/justdubit/justdubit/resolve/main/ltx-2-19b-ic-lora-lipdubbing.safetensors"
+        ],
+        "loras_multipliers": [
+            "0;1",
+            "1"
+        ],
+        "output_audio_is_input_audio": false
+    },
+    "prompt": "The man is speaking American English, saying: \"Hello, world!\"",
+    "image_prompt_type": "S",
+    "video_prompt_type": "VG",
+    "num_inference_steps": 35,
+    "guidance_scale": 3.0,
+    "audio_scale": 0.1,
+    "audio_prompt_type": "K",
+    "video_length": 241
+}
