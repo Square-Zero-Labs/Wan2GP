@@ -1,6 +1,6 @@
 # Wan2GP - AI Image and Video Generation Template
 
-#### Last Updated on 2/13/2026 to 10.84: Ace Step RAM optimizations (fixed memory leak & reduce RAM requirements)
+#### Last Updated on 2/19/2026 to WanGP v10.951, Breaking the Sound Barrier, Mach 2
 
 ### _This template has been tested with an A40_
 
