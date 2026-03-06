@@ -1,6 +1,6 @@
 # Wan2GP - AI Image and Video Generation Template
 
-#### Last Updated on 2/19/2026 to WanGP v10.951, Breaking the Sound Barrier, Mach 2
+#### Last Updated on 3/5/2026 to WanGP v10.98, Expecting an Update (LTX-2.3 and Kiwi Edit)
 
 ### _This template has been tested with an A40_
 
