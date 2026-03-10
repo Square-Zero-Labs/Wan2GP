@@ -24,6 +24,12 @@ function error_handler {
 trap 'error_handler $LINENO' ERR
 
 echo "--- Starting Wan2GP Live Update ---"
+export CUDA_HOME="${CUDA_HOME:-/usr/local/cuda}"
+export CUDA_PATH="${CUDA_PATH:-/usr/local/cuda}"
+export CUDA_ROOT="${CUDA_ROOT:-/usr/local/cuda}"
+export TORCH_CUDA_ARCH_LIST="${TORCH_CUDA_ARCH_LIST:-8.0;8.6;8.9;9.0;12.0}"
+export FORCE_CUDA="${FORCE_CUDA:-1}"
+export MAX_JOBS="${MAX_JOBS:-8}"
 
 # Step 1: Ensure 'lsof' is available to find the process by port.
 # The base RunPod image may not include this tool.
@@ -96,6 +102,7 @@ print("Existing torch:", torch.__version__)
 print("Existing torch.cuda:", torch.version.cuda)
 print("CUDA available:", torch.cuda.is_available())
 PY
+echo "TORCH_CUDA_ARCH_LIST: ${TORCH_CUDA_ARCH_LIST}"
 python3 -m pip install --no-cache-dir -r requirements.txt
 python3 -m pip install --no-cache-dir --force-reinstall "setuptools<=75.8.2"
 python3 -m pip install --no-cache-dir --no-build-isolation --force-reinstall \

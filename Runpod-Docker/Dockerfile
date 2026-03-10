@@ -6,6 +6,13 @@ ENV DEBIAN_FRONTEND=noninteractive
 ENV PYTHONUNBUFFERED=1
 ENV PIP_NO_CACHE_DIR=1
 ENV SHELL=/bin/bash
+ARG CUDA_ARCHITECTURES="8.0;8.6;8.9;9.0;12.0"
+ENV CUDA_HOME=/usr/local/cuda
+ENV CUDA_PATH=/usr/local/cuda
+ENV CUDA_ROOT=/usr/local/cuda
+ENV TORCH_CUDA_ARCH_LIST="${CUDA_ARCHITECTURES}"
+ENV FORCE_CUDA=1
+ENV MAX_JOBS=8
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 
 # Install system dependencies 

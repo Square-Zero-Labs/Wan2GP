@@ -4,6 +4,12 @@ set -euo pipefail
 REQ_FILE="${1:-/opt/wan2gp_source/requirements.txt}"
 PIP_LOG_DIR="/tmp/pip-logs"
 mkdir -p "${PIP_LOG_DIR}"
+export CUDA_HOME="${CUDA_HOME:-/usr/local/cuda}"
+export CUDA_PATH="${CUDA_PATH:-/usr/local/cuda}"
+export CUDA_ROOT="${CUDA_ROOT:-/usr/local/cuda}"
+export TORCH_CUDA_ARCH_LIST="${TORCH_CUDA_ARCH_LIST:-8.0;8.6;8.9;9.0;12.0}"
+export FORCE_CUDA="${FORCE_CUDA:-1}"
+export MAX_JOBS="${MAX_JOBS:-8}"
 
 run_pip_step() {
   local step_name="$1"
@@ -29,6 +35,8 @@ echo "[env] which pip3: $(command -v pip3 2>&1)"
 echo "[env] python: $(python3 --version 2>&1)"
 echo "[env] pip: $(python3 -m pip --version 2>&1)"
 echo "[env] working requirements: ${REQ_FILE}"
+echo "[env] CUDA_HOME: ${CUDA_HOME}"
+echo "[env] TORCH_CUDA_ARCH_LIST: ${TORCH_CUDA_ARCH_LIST}"
 if [ ! -f "${REQ_FILE}" ]; then
   echo "❌ Requirements file not found: ${REQ_FILE}"
   exit 1
