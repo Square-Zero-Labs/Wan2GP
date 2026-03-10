@@ -98,7 +98,8 @@ print("CUDA available:", torch.cuda.is_available())
 PY
 python3 -m pip install --no-cache-dir -r requirements.txt
 python3 -m pip install --no-cache-dir --force-reinstall "setuptools<=75.8.2"
-python3 -m pip install --no-cache-dir --no-build-isolation --force-reinstall sageattention==2.2.0
+python3 -m pip install --no-cache-dir --no-build-isolation --force-reinstall \
+  "git+https://github.com/thu-ml/SageAttention.git@v2.2.0"
 python3 -m pip install --no-cache-dir gradio==5.35.0
 echo "Dependencies updated."
 

@@ -68,8 +68,9 @@ run_pip_step "[pip] requirements.txt" "${PIP_LOG_DIR}/02-requirements.log" \
 echo "[step 5/6] Installing SageAttention 2.2.0"
 run_pip_step "[pip] setuptools for sage" "${PIP_LOG_DIR}/03-setuptools.log" \
   install --no-cache-dir -v --force-reinstall "setuptools<=75.8.2"
-run_pip_step "[pip] sageattention" "${PIP_LOG_DIR}/04-sageattention.log" \
-  install --no-cache-dir -v --no-build-isolation --force-reinstall sageattention==2.2.0
+run_pip_step "[pip] sageattention from git tag v2.2.0" "${PIP_LOG_DIR}/04-sageattention.log" \
+  install --no-cache-dir -v --no-build-isolation --force-reinstall \
+  "git+https://github.com/thu-ml/SageAttention.git@v2.2.0"
 
 echo "[step 6/6] Installing Runpod gradio override"
 run_pip_step "[pip] gradio override" "${PIP_LOG_DIR}/05-gradio.log" \
