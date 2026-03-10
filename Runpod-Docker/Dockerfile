@@ -27,9 +27,15 @@ RUN git clone https://github.com/deepbeepmeep/Wan2GP.git /opt/wan2gp_source \
 # Add custom finetunes after cloning upstream.
 COPY finetunes/ltx2_distilled_old_vae.json /opt/wan2gp_source/finetunes/ltx2_distilled_old_vae.json
 # Install Python dependencies from the source code.
+# Normalize ORT to a CUDA 12 compatible build (RunPod base image is CUDA 12.8.1).
 # The GitHub Actions workflow is configured to maximize build space, so we can
 # now use a single, clean RUN command for better maintainability.
-RUN sed -i -e 's/^torch>=/#torch>=/' -e 's/^torchvision>=/#torchvision>=/' /opt/wan2gp_source/requirements.txt \
+RUN sed -i \
+    -e '/ort-cuda-13-nightly/d' \
+    -e 's/^onnxruntime-gpu==[^;]*; python_version >= "3.11"/onnxruntime-gpu==1.22.0; python_version >= "3.11"/' \
+    -e 's/^torch>=/#torch>=/' \
+    -e 's/^torchvision>=/#torchvision>=/' \
+    /opt/wan2gp_source/requirements.txt \
     && python3 -m pip install --no-cache-dir -r /opt/wan2gp_source/requirements.txt \
     && python3 -m pip install --no-cache-dir gradio==5.35.0 sageattention==1.0.6 \
     && rm -rf /root/.cache/pip
