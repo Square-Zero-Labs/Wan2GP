@@ -1,7 +1,7 @@
 #!/bin/bash
 set -euo pipefail
 
-REQ_FILE="/opt/wan2gp_source/requirements.txt"
+REQ_FILE="${1:-/opt/wan2gp_source/requirements.txt}"
 PIP_LOG_DIR="/tmp/pip-logs"
 mkdir -p "${PIP_LOG_DIR}"
 
@@ -29,6 +29,10 @@ echo "[env] which pip3: $(command -v pip3 2>&1)"
 echo "[env] python: $(python3 --version 2>&1)"
 echo "[env] pip: $(python3 -m pip --version 2>&1)"
 echo "[env] working requirements: ${REQ_FILE}"
+if [ ! -f "${REQ_FILE}" ]; then
+  echo "❌ Requirements file not found: ${REQ_FILE}"
+  exit 1
+fi
 
 python3 - <<'PY'
 import sys
@@ -57,12 +61,18 @@ print("torch.cuda:", torch.version.cuda)
 print("cuda available:", torch.cuda.is_available())
 PY
 
-echo "[step 4/5] Installing app requirements"
+echo "[step 4/6] Installing app requirements"
 run_pip_step "[pip] requirements.txt" "${PIP_LOG_DIR}/02-requirements.log" \
   install --no-cache-dir -v -r "${REQ_FILE}"
 
-echo "[step 5/5] Installing Runpod gradio override"
-run_pip_step "[pip] gradio override" "${PIP_LOG_DIR}/03-gradio.log" \
+echo "[step 5/6] Installing SageAttention 2.2.0"
+run_pip_step "[pip] setuptools for sage" "${PIP_LOG_DIR}/03-setuptools.log" \
+  install --no-cache-dir -v --force-reinstall "setuptools<=75.8.2"
+run_pip_step "[pip] sageattention" "${PIP_LOG_DIR}/04-sageattention.log" \
+  install --no-cache-dir -v --no-build-isolation --force-reinstall sageattention==2.2.0
+
+echo "[step 6/6] Installing Runpod gradio override"
+run_pip_step "[pip] gradio override" "${PIP_LOG_DIR}/05-gradio.log" \
   install --no-cache-dir -v gradio==5.35.0
 
 echo "[done] Python dependencies installed successfully"

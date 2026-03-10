@@ -87,15 +87,18 @@ if [ -f "/workspace/Wan2GP/wgp.py.bak" ]; then
 fi
 
 # Step 5: Update Python dependencies.
-# This follows the same logic as the original Dockerfile setup.
+# For live updates, keep the existing Torch stack and refresh only app deps.
 echo "Updating Python dependencies from requirements.txt..."
 sed -i -e 's/^torch>=/#torch>=/' -e 's/^torchvision>=/#torchvision>=/' requirements.txt
-python3 -m pip install --no-cache-dir --upgrade --force-reinstall \
-  torch==2.10.0+cu130 \
-  torchvision==0.25.0+cu130 \
-  torchaudio==2.10.0+cu130 \
-  --index-url https://download.pytorch.org/whl/cu130
+python3 - <<'PY'
+import torch
+print("Existing torch:", torch.__version__)
+print("Existing torch.cuda:", torch.version.cuda)
+print("CUDA available:", torch.cuda.is_available())
+PY
 python3 -m pip install --no-cache-dir -r requirements.txt
+python3 -m pip install --no-cache-dir --force-reinstall "setuptools<=75.8.2"
+python3 -m pip install --no-cache-dir --no-build-isolation --force-reinstall sageattention==2.2.0
 python3 -m pip install --no-cache-dir gradio==5.35.0
 echo "Dependencies updated."
 

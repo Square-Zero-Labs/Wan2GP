@@ -60,8 +60,8 @@ The Docker image is automatically built and pushed to GitHub Container Registry 
 git clone https://github.com/Square-Zero-Labs/Wan2GP.git
 cd Wan2GP
 
-# Build the Docker image
-docker build -t wan2gp:local .
+# Build the RunPod Docker image
+docker build -f Runpod-Docker/Dockerfile -t wan2gp:local .
 ```
 
 ### Running Locally
@@ -182,9 +182,10 @@ curl -s http://localhost:8888 | head
 
 ### Base Image
 
-- **RunPod PyTorch Base**: `runpod/pytorch:2.8.0-py3.11-cuda12.8.1-cudnn-devel-ubuntu22.04`
-- **PyTorch**: 2.8.0 with CUDA 12.8.1 and Python 3.11
-- **OS**: Ubuntu 22.04 LTS with full RunPod infrastructure compatibility
+- **RunPod PyTorch Base**: `runpod/pytorch:1.0.3-cu1300-torch291-ubuntu2404`
+- **PyTorch**: Upgraded in-image to 2.10.0 with CUDA 13.0
+- **Python**: RunPod base defaults to 3.12; this image forces Python 3.11
+- **OS**: Ubuntu 24.04 with full RunPod infrastructure compatibility
 - **Includes**: Jupyter Lab, code-server, runpodctl, and other RunPod tools
 
 ### Included Software
@@ -197,7 +198,7 @@ curl -s http://localhost:8888 | head
 - **build-essential**: For compiling native extensions
 - All Python dependencies from requirements.txt
 - **Gradio**: 5.35.0 (upgraded from requirements.txt version)
-- **Attention backends**: Default PyTorch SDPA only (SageAttention not preinstalled)
+- **Attention backends**: PyTorch SDPA plus SageAttention 2.2.0 preinstalled
 
 ### Working Directory Structure
 
@@ -218,13 +219,11 @@ curl -s http://localhost:8888 | head
 The GitHub Actions workflow (`.github/workflows/docker-build.yml`) automatically:
 
 1. **Triggers on**:
-
    - Push to `main` branch
    - Push to `docker` branch
    - Git tags starting with `v`
 
 2. **Build Process**:
-
    - Checks out the repository
    - Frees up runner disk space (prevents build failures)
    - Sets up Docker Buildx with container driver
@@ -246,8 +245,9 @@ The GitHub Actions workflow (`.github/workflows/docker-build.yml`) automatically
 The `Dockerfile` includes:
 
 - System dependencies installation
-- Repository cloning at specific commit (`597d26b7e0e53550f57a9973c5d6a1937b2e1a7b`)
-- Python package installation with torch/torchvision skip
+- Repository cloning at a pinned upstream commit
+- Python 3.11 override on top of the RunPod base image
+- Python package installation with explicit Torch 2.10.0 / CUDA 13.0 stack
 - Startup script setup and permissions
 - Port exposure
 
@@ -372,13 +372,11 @@ nvidia-smi
    ```
 
 2. **Testing**:
-
    - Push to `docker` branch for CI testing
    - Check GitHub Actions logs for build success
    - Test deployed image on RunPod
 
 3. **Production Release**:
-
    - Merge to `main` for production release
    - Tag with `v*` for versioned releases
    - Monitor logs for any deployment issues
