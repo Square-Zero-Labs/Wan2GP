@@ -7,7 +7,7 @@ mkdir -p "${PIP_LOG_DIR}"
 export CUDA_HOME="${CUDA_HOME:-/usr/local/cuda}"
 export CUDA_PATH="${CUDA_PATH:-/usr/local/cuda}"
 export CUDA_ROOT="${CUDA_ROOT:-/usr/local/cuda}"
-export TORCH_CUDA_ARCH_LIST="${TORCH_CUDA_ARCH_LIST:-8.0;8.6;8.9;9.0;12.0}"
+export TORCH_CUDA_ARCH_LIST="${TORCH_CUDA_ARCH_LIST:-8.6;8.9;12.0}"
 export FORCE_CUDA="${FORCE_CUDA:-1}"
 export MAX_JOBS="${MAX_JOBS:-8}"
 

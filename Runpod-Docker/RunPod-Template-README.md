@@ -4,7 +4,7 @@
 
 ### _This template has been tested with an A40_
 
-- SageAttention 2.2.0 is preinstalled in this template. PyTorch SDPA remains available as a fallback.
+- This template currently ships with PyTorch SDPA only. SageAttention install is temporarily disabled in the image build.
 
 ## What is Wan2GP?
 
@@ -91,7 +91,7 @@ tail -f /workspace/wan2gp.log
 
 ### Running on RTX 5090
 
-No extra attention configuration is required. SageAttention 2.2.0 is installed, and PyTorch SDPA remains available if you want to switch back.
+No extra attention configuration is required. This image currently uses PyTorch SDPA by default because SageAttention install is temporarily disabled.
 
 1. Open the Wan2GP UI and go to the Configuration tab.
 2. Find the Attention Type setting.

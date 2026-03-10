@@ -198,7 +198,7 @@ curl -s http://localhost:8888 | head
 - **build-essential**: For compiling native extensions
 - All Python dependencies from requirements.txt
 - **Gradio**: 5.35.0 (upgraded from requirements.txt version)
-- **Attention backends**: PyTorch SDPA plus SageAttention 2.2.0 preinstalled
+- **Attention backends**: PyTorch SDPA is included by default; SageAttention install is currently disabled in this image
 
 ### Working Directory Structure
 
