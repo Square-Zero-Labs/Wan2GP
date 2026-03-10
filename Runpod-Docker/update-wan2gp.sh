@@ -89,7 +89,13 @@ fi
 # Step 5: Update Python dependencies.
 # This follows the same logic as the original Dockerfile setup.
 echo "Updating Python dependencies from requirements.txt..."
-sed -i -e 's/^torch>=/#torch>=/' -e 's/^torchvision>=/#torchvision>=/' requirements.txt
+# Keep ORT aligned with CUDA 12.8.1 from the RunPod base image.
+sed -i \
+    -e '/ort-cuda-13-nightly/d' \
+    -e 's/^onnxruntime-gpu==[^;]*; python_version >= "3.11"/onnxruntime-gpu==1.22.0; python_version >= "3.11"/' \
+    -e 's/^torch>=/#torch>=/' \
+    -e 's/^torchvision>=/#torchvision>=/' \
+    requirements.txt
 python3 -m pip install --no-cache-dir -r requirements.txt
 python3 -m pip install --no-cache-dir gradio==5.35.0 sageattention==1.0.6
 echo "Dependencies updated."
