@@ -26,18 +26,16 @@ RUN git clone https://github.com/deepbeepmeep/Wan2GP.git /opt/wan2gp_source \
     && git checkout a0ea09158e5ad9a6017536fa0171c35851e5fc07
 # Add custom finetunes after cloning upstream.
 COPY finetunes/ltx2_distilled_old_vae.json /opt/wan2gp_source/finetunes/ltx2_distilled_old_vae.json
+COPY Runpod-Docker/install-python-deps.sh /usr/local/bin/install-python-deps.sh
 # Install Python dependencies from the source code.
 # The RunPod CUDA 13 base currently tops out at Torch 2.9.1, so we explicitly
 # upgrade the PyTorch stack to the CUDA 13.0 wheels we want in this image.
-RUN sed -i -e 's/^torch>=/#torch>=/' -e 's/^torchvision>=/#torchvision>=/' /opt/wan2gp_source/requirements.txt \
-    && python3 -m pip install --no-cache-dir --upgrade --force-reinstall \
-        torch==2.10.0+cu130 \
-        torchvision==0.24.0+cu130 \
-        torchaudio==2.10.0+cu130 \
-        --index-url https://download.pytorch.org/whl/cu130 \
-    && python3 -m pip install --no-cache-dir -r /opt/wan2gp_source/requirements.txt \
-    && python3 -m pip install --no-cache-dir gradio==5.35.0 \
-    && rm -rf /root/.cache/pip
+RUN chmod +x /usr/local/bin/install-python-deps.sh
+RUN /usr/local/bin/install-python-deps.sh
+RUN apt-get purge -y build-essential \
+    && apt-get autoremove -y \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
 
 # Copy and set up our startup and update scripts
 COPY Runpod-Docker/start-wan2gp.sh /usr/local/bin/start-wan2gp.sh
