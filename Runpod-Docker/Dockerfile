@@ -20,6 +20,12 @@ RUN rm -f /etc/apt/sources.list.d/cuda*.list && \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
+# RunPod's base image defaults python/pip to 3.12; force 3.11 for this image.
+RUN ln -sf /usr/bin/python3.11 /usr/local/bin/python3 \
+    && ln -sf /usr/bin/python3.11 /usr/local/bin/python \
+    && ln -sf /usr/local/bin/pip3.11 /usr/local/bin/pip3 \
+    && ln -sf /usr/local/bin/pip3.11 /usr/local/bin/pip
+
 # Clone the application source code to a "safe" location that won't be volume-mounted.
 RUN git clone https://github.com/deepbeepmeep/Wan2GP.git /opt/wan2gp_source \
     && cd /opt/wan2gp_source \

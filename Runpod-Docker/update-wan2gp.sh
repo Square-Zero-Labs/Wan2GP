@@ -92,7 +92,7 @@ echo "Updating Python dependencies from requirements.txt..."
 sed -i -e 's/^torch>=/#torch>=/' -e 's/^torchvision>=/#torchvision>=/' requirements.txt
 python3 -m pip install --no-cache-dir --upgrade --force-reinstall \
   torch==2.10.0+cu130 \
-  torchvision==0.24.0+cu130 \
+  torchvision==0.25.0+cu130 \
   torchaudio==2.10.0+cu130 \
   --index-url https://download.pytorch.org/whl/cu130
 python3 -m pip install --no-cache-dir -r requirements.txt
