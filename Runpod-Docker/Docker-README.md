@@ -190,14 +190,14 @@ curl -s http://localhost:8888 | head
 ### Included Software
 
 - **Python**: 3.11 with pip
-- **PyTorch**: 2.8.0 with CUDA 12.8.1 support (pre-installed, not reinstalled)
+- **PyTorch**: 2.10.0 with CUDA 13.0 support
 - **FFmpeg**: For video processing
 - **tmux**: For session management
 - **rsync**: For reliable file operations
 - **build-essential**: For compiling native extensions
 - All Python dependencies from requirements.txt
 - **Gradio**: 5.35.0 (upgraded from requirements.txt version)
-- **SageAttention**: 1.0.6
+- **SageAttention**: 2.2.0
 
 ### Working Directory Structure
 

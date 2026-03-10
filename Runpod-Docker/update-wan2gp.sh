@@ -90,8 +90,15 @@ fi
 # This follows the same logic as the original Dockerfile setup.
 echo "Updating Python dependencies from requirements.txt..."
 sed -i -e 's/^torch>=/#torch>=/' -e 's/^torchvision>=/#torchvision>=/' requirements.txt
+python3 -m pip install --no-cache-dir --upgrade --force-reinstall \
+  torch==2.10.0+cu130 \
+  torchvision==0.24.0+cu130 \
+  torchaudio==2.10.0+cu130 \
+  --index-url https://download.pytorch.org/whl/cu130
 python3 -m pip install --no-cache-dir -r requirements.txt
-python3 -m pip install --no-cache-dir gradio==5.35.0 sageattention==1.0.6
+python3 -m pip install --no-cache-dir --force-reinstall "setuptools<=75.8.2"
+python3 -m pip install --no-cache-dir --no-build-isolation --force-reinstall sageattention==2.2.0
+python3 -m pip install --no-cache-dir gradio==5.35.0
 echo "Dependencies updated."
 
 # Step 6: Restart the Wan2GP application with the new code.
