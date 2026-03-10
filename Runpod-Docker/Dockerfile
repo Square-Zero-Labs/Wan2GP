@@ -6,12 +6,6 @@ ENV DEBIAN_FRONTEND=noninteractive
 ENV PYTHONUNBUFFERED=1
 ENV PIP_NO_CACHE_DIR=1
 ENV SHELL=/bin/bash
-ENV CUDA_HOME=/usr/local/cuda
-ENV CUDA_ROOT=/usr/local/cuda
-ENV CUDA_PATH=/usr/local/cuda
-ENV TORCH_CUDA_ARCH_LIST="8.0;8.6;8.9;9.0;12.0"
-ENV PATH=/usr/local/cuda/bin:${PATH}
-ENV LD_LIBRARY_PATH=/usr/local/cuda/lib64:${LD_LIBRARY_PATH}
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 
 # Install system dependencies 
@@ -21,7 +15,6 @@ RUN rm -f /etc/apt/sources.list.d/cuda*.list && \
     ffmpeg \
     tmux \
     build-essential \
-    ninja-build \
     rsync \
     apache2-utils \
     && apt-get clean \
@@ -43,10 +36,6 @@ RUN sed -i -e 's/^torch>=/#torch>=/' -e 's/^torchvision>=/#torchvision>=/' /opt/
         torchaudio==2.10.0+cu130 \
         --index-url https://download.pytorch.org/whl/cu130 \
     && python3 -m pip install --no-cache-dir -r /opt/wan2gp_source/requirements.txt \
-    && python3 -m pip install --no-cache-dir --force-reinstall "setuptools<=75.8.2" \
-    && test -x /usr/local/cuda/bin/nvcc \
-    && /usr/local/cuda/bin/nvcc --version \
-    && python3 -m pip install --no-cache-dir --no-build-isolation --force-reinstall sageattention==2.2.0 \
     && python3 -m pip install --no-cache-dir gradio==5.35.0 \
     && rm -rf /root/.cache/pip
 

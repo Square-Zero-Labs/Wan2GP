@@ -4,7 +4,7 @@
 
 ### _This template has been tested with an A40_
 
-- To run on RTX 5090, you must deactivate SageAttention. See instructions below.
+- This template uses the default PyTorch SDPA attention backend. SageAttention is not preinstalled.
 
 ## What is Wan2GP?
 
@@ -90,7 +90,7 @@ tail -f /workspace/wan2gp.log
 
 ### Running on RTX 5090
 
-You must deactivate SageAttention before generating videos.
+No extra attention configuration is required. This template uses PyTorch SDPA by default.
 
 1. Open the Wan2GP UI and go to the Configuration tab.
 2. Find the Attention Type setting.
