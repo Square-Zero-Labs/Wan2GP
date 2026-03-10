@@ -89,6 +89,12 @@ fi
 # Step 5: Update Python dependencies.
 # This follows the same logic as the original Dockerfile setup.
 echo "Updating Python dependencies from requirements.txt..."
+export CUDA_HOME=/usr/local/cuda
+export CUDA_ROOT=/usr/local/cuda
+export CUDA_PATH=/usr/local/cuda
+export TORCH_CUDA_ARCH_LIST="8.0;8.6;8.9;9.0;12.0"
+export PATH=/usr/local/cuda/bin:$PATH
+export LD_LIBRARY_PATH=/usr/local/cuda/lib64:${LD_LIBRARY_PATH:-}
 sed -i -e 's/^torch>=/#torch>=/' -e 's/^torchvision>=/#torchvision>=/' requirements.txt
 python3 -m pip install --no-cache-dir --upgrade --force-reinstall \
   torch==2.10.0+cu130 \
@@ -97,6 +103,8 @@ python3 -m pip install --no-cache-dir --upgrade --force-reinstall \
   --index-url https://download.pytorch.org/whl/cu130
 python3 -m pip install --no-cache-dir -r requirements.txt
 python3 -m pip install --no-cache-dir --force-reinstall "setuptools<=75.8.2"
+test -x /usr/local/cuda/bin/nvcc
+/usr/local/cuda/bin/nvcc --version
 python3 -m pip install --no-cache-dir --no-build-isolation --force-reinstall sageattention==2.2.0
 python3 -m pip install --no-cache-dir gradio==5.35.0
 echo "Dependencies updated."
