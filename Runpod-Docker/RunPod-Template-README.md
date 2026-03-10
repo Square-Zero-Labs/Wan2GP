@@ -4,7 +4,7 @@
 
 ### _This template has been tested with an A40_
 
-- To run on RTX 5090, you must deactivate SageAttention. See instructions below.
+- This template currently ships with PyTorch SDPA only. SageAttention install is temporarily disabled in the image build.
 
 ## What is Wan2GP?
 
@@ -12,7 +12,7 @@ WAN2GP (aka "Wan for the GPU Poor") is a free, open-source tool that lets you ge
 
 ## What This Template Provides
 
-This template is an extenstion of the official Runpod Pytorch 2.8.0 template. It gives you a fully configured environment with:
+This template is an extension of the official RunPod PyTorch image. It gives you a fully configured environment with:
 
 - ✅ **Wan2GP Application** - Ready to use on port 7862 (password protected)
 - ✅ **Jupyter Lab** - Development environment on port 8888
@@ -23,7 +23,8 @@ This template is an extenstion of the official Runpod Pytorch 2.8.0 template. It
 
 ### 1. Launch Your Pod/Selecting GPU
 
-- **CUDA Version**: Make sure you use a machine that has **CUDA 12.8** installed (use additional filters when selecting machine)
+- **CUDA Version**: This image targets **CUDA 13.0**
+- **Python Version**: The image forces **Python 3.11**
 - **Recommended GPU**: This template was tested with an A40
 
 ### 2. Wait for Startup (Important!)
@@ -90,7 +91,7 @@ tail -f /workspace/wan2gp.log
 
 ### Running on RTX 5090
 
-You must deactivate SageAttention before generating videos.
+No extra attention configuration is required. This image currently uses PyTorch SDPA by default because SageAttention install is temporarily disabled.
 
 1. Open the Wan2GP UI and go to the Configuration tab.
 2. Find the Attention Type setting.
