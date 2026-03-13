@@ -1,6 +1,6 @@
 # Wan2GP - AI Image and Video Generation Template
 
-#### Last Updated on 3/7/2026 to WanGP v10.981: LTX2.3 Ic Lora Support & expert settings, Matanyone 2, SVI Pro end frames
+#### Last Updated on 3/7/2026 to WanGP 10.9873: Fixed low fidelity LTX2 injected frames + added Image Strength slider for end & injected frames
 
 ### _This template has been tested with an A40_
 
