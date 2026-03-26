@@ -1,6 +1,6 @@
 # Wan2GP - AI Image and Video Generation Template
 
-#### Last Updated on 3/7/2026 to WanGP v10.9874: Replaced LTX-2.3 spatial upsampler by hotfix v1.1
+#### Last Updated on 3/25/2026 to WanGP v11, The Machine Within The Machine
 
 ### _This template has been tested with an A40_
 
