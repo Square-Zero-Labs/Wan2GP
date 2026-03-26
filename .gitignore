@@ -44,7 +44,6 @@ gradio_outputs/
 ckpts/
 loras/
 loras_i2v/
-
 settings/
 !shared/deepy/settings/
 !shared/deepy/settings/**
