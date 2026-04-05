@@ -1,6 +1,6 @@
 # Wan2GP - AI Image and Video Generation Template
 
-#### Last Updated on 3/25/2026 to WanGP v11, The Machine Within The Machine
+#### Last Updated on 4/5/2026 to WanGP v11.20, Self Destructing Model
 
 ### _This template has been tested with an A40_
 
