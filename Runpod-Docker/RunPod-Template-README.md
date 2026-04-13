@@ -1,6 +1,6 @@
 # Wan2GP - AI Image and Video Generation Template
 
-#### Last Updated on 4/5/2026 to WanGP v11.20, Self Destructing Model
+#### Last Updated on 4/13/2026 to WanGP v11.26: fixed outpainting ignored with if Manual Expansion was selected
 
 ### _This template has been tested with an A40_
 
