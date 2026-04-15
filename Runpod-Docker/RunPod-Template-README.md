@@ -1,6 +1,6 @@
 # Wan2GP - AI Image and Video Generation Template
 
-#### Last Updated on 4/14/2026 to WanGP v11.30, LTX-2 Mega Mix
+#### Last Updated on 4/14/2026 to WanGP v11.31, LTX-2 Mega Mix with phase fix
 
 ### _This template has been tested with an A40_
 
