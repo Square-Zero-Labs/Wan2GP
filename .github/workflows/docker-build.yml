@@ -6,6 +6,7 @@ on:
       - main
       - docker
       - update-4-14-2026
+      - update-base-4-16
     tags:
       - "v*"
 
