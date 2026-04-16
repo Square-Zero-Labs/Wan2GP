@@ -182,14 +182,14 @@ curl -s http://localhost:8888 | head
 
 ### Base Image
 
-- **RunPod PyTorch Base**: `runpod/pytorch:1.0.2-cu1281-torch280-ubuntu2404`
-- **PyTorch**: 2.8.0 with CUDA 12.8.1
-- **OS**: Ubuntu 24.04 LTS with full RunPod infrastructure compatibility
+- **RunPod PyTorch Base**: `runpod/pytorch:2.8.0-py3.11-cuda12.8.1-cudnn-devel-ubuntu22.04`
+- **PyTorch**: 2.8.0 with CUDA 12.8.1 and Python 3.11
+- **OS**: Ubuntu 22.04 LTS with full RunPod infrastructure compatibility
 - **Includes**: Jupyter Lab, code-server, runpodctl, and other RunPod tools
 
 ### Included Software
 
-- **Python**: 3.11 with pip (explicitly selected on top of the RunPod base, which ships multiple Python versions)
+- **Python**: 3.11 with pip
 - **PyTorch**: 2.8.0 with CUDA 12.8.1 support (pre-installed, not reinstalled)
 - **FFmpeg**: For video processing
 - **tmux**: For session management
