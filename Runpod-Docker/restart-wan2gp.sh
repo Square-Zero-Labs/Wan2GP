@@ -1,6 +1,8 @@
 #!/bin/bash
 set -e
 
+PYTHON_BIN="${PYTHON_BIN:-python3.11}"
+
 # --- Wan2GP Restart Script ---
 # Stops any running Wan2GP process and starts a fresh instance.
 
@@ -13,14 +15,6 @@ function error_handler {
 trap 'error_handler $LINENO' ERR
 
 echo "--- Restarting Wan2GP ---"
-
-# Ensure helper available to find processes by port (best effort)
-if ! command -v lsof &> /dev/null; then
-  echo "Installing lsof (one-time)..."
-  apt-get update && apt-get install -y --no-install-recommends lsof >/dev/null 2>&1 || true
-  apt-get clean >/dev/null 2>&1 || true
-  rm -rf /var/lib/apt/lists/* >/dev/null 2>&1 || true
-fi
 
 echo "Stopping existing Wan2GP process (if any)..."
 PID_TO_KILL=$(lsof -t -i:7860 2>/dev/null || true)
@@ -45,7 +39,6 @@ fi
 
 echo "Starting Wan2GP in background..."
 cd /workspace/Wan2GP
-nohup python3 wgp.py --server-name 127.0.0.1 --server-port 7860 --save-masks > /workspace/wan2gp.log 2>&1 &
+nohup "$PYTHON_BIN" wgp.py --server-name 127.0.0.1 --server-port 7860 --save-masks > /workspace/wan2gp.log 2>&1 &
 
 echo "✅ Wan2GP restarted. Monitor logs with: tail -f /workspace/wan2gp.log"
-
