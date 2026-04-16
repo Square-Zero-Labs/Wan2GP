@@ -1,6 +1,9 @@
 #!/bin/bash
 set -e
 
+PYTHON_BIN="${PYTHON_BIN:-python3.11}"
+PIP_BIN="${PIP_BIN:-pip3.11}"
+
 # --- Wan2GP Live Update Script ---
 # This script updates the Wan2GP application in a running RunPod container.
 # It is designed to work around the environment's auto-restart mechanism.
@@ -25,15 +28,7 @@ trap 'error_handler $LINENO' ERR
 
 echo "--- Starting Wan2GP Live Update ---"
 
-# Step 1: Ensure 'lsof' is available to find the process by port.
-# The base RunPod image may not include this tool.
-if ! command -v lsof &> /dev/null; then
-    echo "Installing lsof..."
-    # This requires root, which is the default in RunPod containers.
-    apt-get update && apt-get install -y --no-install-recommends lsof
-fi
-
-# Step 2: Find and forcefully stop the current Wan2GP process.
+# Step 1: Find and forcefully stop the current Wan2GP process.
 echo "Searching for process on port 7860..."
 PID_TO_KILL=$(lsof -t -i:7860 || true) # Use '|| true' to prevent exit on error if port is not in use
 if [ -n "$PID_TO_KILL" ]; then
@@ -46,7 +41,7 @@ fi
 # As a backup, kill any process matching the script name.
 pkill -9 -f wgp.py || echo "No 'wgp.py' process was found to kill."
 
-# Step 3: IMPORTANT - Temporarily rename the script to break the auto-restart loop.
+# Step 2: IMPORTANT - Temporarily rename the script to break the auto-restart loop.
 # The RunPod supervisor will try to restart the script. Renaming it prevents this.
 echo "Temporarily renaming wgp.py to prevent auto-restart..."
 if [ -f "/workspace/Wan2GP/wgp.py" ]; then
@@ -57,7 +52,7 @@ else
     echo "wgp.py not found at /workspace/Wan2GP/, skipping rename."
 fi
 
-# Step 4: Navigate to the application directory and update the code from the 'main' branch.
+# Step 3: Navigate to the application directory and update the code from the 'main' branch.
 echo "Navigating to /workspace/Wan2GP and updating source code from 'main' branch..."
 cd /workspace/Wan2GP
 
@@ -86,7 +81,7 @@ if [ -f "/workspace/Wan2GP/wgp.py.bak" ]; then
     rm /workspace/Wan2GP/wgp.py.bak
 fi
 
-# Step 5: Update Python dependencies.
+# Step 4: Update Python dependencies.
 # This follows the same logic as the original Dockerfile setup.
 echo "Updating Python dependencies from requirements.txt..."
 # Keep ORT aligned with CUDA 12.8.1 from the RunPod base image.
@@ -96,14 +91,14 @@ sed -i \
     -e 's/^torch>=/#torch>=/' \
     -e 's/^torchvision>=/#torchvision>=/' \
     requirements.txt
-python3 -m pip install --no-cache-dir -r requirements.txt
-python3 -m pip install --no-cache-dir gradio==5.35.0 sageattention==1.0.6
+"$PIP_BIN" install --no-cache-dir -r requirements.txt
+"$PIP_BIN" install --no-cache-dir gradio==5.35.0 sageattention==1.0.6
 echo "Dependencies updated."
 
-# Step 6: Restart the Wan2GP application with the new code.
+# Step 5: Restart the Wan2GP application with the new code.
 # This uses the same command as the original start-wan2gp.sh script.
 echo "Restarting Wan2GP application in the background..."
-nohup python3 wgp.py --server-name 127.0.0.1 --server-port 7860 --save-masks > /workspace/wan2gp.log 2>&1 &
+nohup "$PYTHON_BIN" wgp.py --server-name 127.0.0.1 --server-port 7860 --save-masks > /workspace/wan2gp.log 2>&1 &
 
 echo ""
 echo "✅ --- Wan2GP Update Complete ---"
