@@ -1,5 +1,7 @@
-# Use the official RunPod base image, which includes a pre-configured environment.
-FROM runpod/pytorch:2.8.0-py3.11-cuda12.8.1-cudnn-devel-ubuntu22.04
+# Use the official RunPod PyTorch template on Ubuntu 24.04 so the distro ffmpeg
+# is new enough for Wan2GP, while we explicitly keep Python 3.11 as the default
+# interpreter for this image.
+FROM runpod/pytorch:1.0.2-cu1281-torch280-ubuntu2404
 
 # Set environment variables for non-interactive installs.
 ENV DEBIAN_FRONTEND=noninteractive
@@ -19,6 +21,14 @@ RUN rm -f /etc/apt/sources.list.d/cuda*.list && \
     apache2-utils \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
+
+# RunPod's Ubuntu 24.04 base preinstalls multiple Python versions and defaults
+# `python`/`python3`/`pip` to 3.12. Keep this image on 3.11 for compatibility
+# with the current Wan2GP dependency set.
+RUN ln -sf /usr/bin/python3.11 /usr/local/bin/python && \
+    ln -sf /usr/bin/python3.11 /usr/local/bin/python3 && \
+    ln -sf /usr/local/bin/pip3.11 /usr/local/bin/pip && \
+    ln -sf /usr/local/bin/pip3.11 /usr/local/bin/pip3
 
 # Clone the application source code to a "safe" location that won't be volume-mounted.
 RUN git clone https://github.com/deepbeepmeep/Wan2GP.git /opt/wan2gp_source \
