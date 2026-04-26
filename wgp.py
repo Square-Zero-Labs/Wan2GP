@@ -1,6 +1,7 @@
 ############# WanGP Copyright DeepBeepMeep 2025-2026 #############
 import os, sys
 os.environ["GRADIO_LANG"] = "en"
+from shared.default_device import set_default_cuda_device_from_arg; set_default_cuda_device_from_arg("gpu")
 # # os.environ.pop("TORCH_LOGS", None)  # make sure no env var is suppressing/overriding
 # os.environ["TORCH_LOGS"]= "recompiles"
 import torch._logging as tlog
