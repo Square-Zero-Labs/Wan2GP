@@ -9,7 +9,7 @@ from . import constants
 
 
 def choose_resolution(budget_label: str) -> str:
-    resolutions = {"256p": "352x256", "360p": "480x360", "480p": "640x480", "540p": "720x540", "720p": "1280x720", "900p": "1200x900", "1080p": "1920x1088"}
+    resolutions = {"256p": "448x256", "320p": "576x320", "384p": "672x384", "480p": "832x480", "540p": "960x544", "720p": "1280x720", "900p": "1600x896", "1080p": "1920x1088"}
     try:
         return resolutions[str(budget_label)]
     except KeyError as exc:

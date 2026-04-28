@@ -198,7 +198,6 @@ class ConfigTabPlugin(WAN2GPPlugin):
                     )
                     self.VAE_precision_choice = gr.Dropdown(choices=[("16-bit (faster, less VRAM)", "16"), ("32-bit (slower, better for sliding window)", "32")], value=self.server_config.get("vae_precision", "16"), label="VAE Encoding/Decoding Precision")
                     self.compile_choice = gr.Dropdown(choices=[("On (up to 20% faster, requires Triton)", "transformer"), ("Off", "")], value=self.compile, label="Compile Transformer Model (slight speed again, but first generation is slower and potential compatibility issues with some GPUs/Models)", interactive=not self.args.lock_config)
-                    self.depth_anything_v2_variant_choice = gr.Dropdown(choices=[("Large (more precise, slower)", "vitl"), ("Big (less precise, faster)", "vitb")], value=self.server_config.get("depth_anything_v2_variant", "vitl"), label="Depth Anything v2 VACE Preprocessor")
                     vae_config_value = self.vae_config if self.vae_config in [0, 1, 2, 3] else 0
                     self.vae_config_choice = gr.Dropdown(
                         choices=[
@@ -264,11 +263,14 @@ class ConfigTabPlugin(WAN2GPPlugin):
                         interactive=not self.args.lock_config
                     )
                     self.matanyone_version_choice = gr.Dropdown(
-                        choices=[("MatAnyone v1 (original, default)", "v1"), ("MatAnyone v2", "v2")],
+                        choices=[("MatAnyone v1 (original, default)", "v1"), ("MatAnyone v2", "v2"), ("SAM3 (no Alpha / Grey level support but better Temporal Stability & Auto Mask Selection by Keyword)", "sam3")],c
                         value=self.server_config.get("matanyone_version", "v1"),
-                        label="MatAnyone Video Mask Model",
+                        label="Video Mask Model",
                         interactive=not self.args.lock_config
                     )
+
+                    self.depth_anything_v2_variant_choice = gr.Dropdown(choices=[("Depth Anything 2 Large (more precise, slower)", "vitl"), ("Depth Anything 2 Big (less precise, faster)", "vitb"), ("Depth Anything 3 Metric Large (better temporal stability ?)", "da3_metric_large")], value=self.server_config.get("depth_anything_v2_variant", "vitl"), label="Depth Anything Preprocessor")
+
 
                 with gr.Tab("Prompt Enhancer / Deepy"):
                     with gr.Group():
@@ -429,7 +431,8 @@ class ConfigTabPlugin(WAN2GPPlugin):
             self.UI_theme_choice, self.queue_color_scheme_choice, self.process_queues_when_browser_unfocused_choice,
             self.quantization_choice, self.transformer_dtype_policy_choice, self.mixed_precision_choice,
             self.text_encoder_quantization_choice, self.lm_decoder_engine_choice, self.VAE_precision_choice, self.compile_choice,
-            self.depth_anything_v2_variant_choice, self.vae_config_choice, self.boost_choice, self.enable_int8_kernels_choice,
+            self.depth_anything_v2_variant_choice,
+            self.vae_config_choice, self.boost_choice, self.enable_int8_kernels_choice,
             self.video_profile_choice, self.image_profile_choice, self.audio_profile_choice,
             self.preload_in_VRAM_choice, self.max_reserved_loras_choice,
             self.enhancer_enabled_choice, self.enhancer_quantization_choice, self.enhancer_mode_choice,
@@ -506,7 +509,8 @@ class ConfigTabPlugin(WAN2GPPlugin):
             UI_theme_choice, queue_color_scheme_choice, process_queues_when_browser_unfocused_choice,
             quantization_choice, transformer_dtype_policy_choice, mixed_precision_choice,
             text_encoder_quantization_choice, lm_decoder_engine_choice, VAE_precision_choice, compile_choice,
-            depth_anything_v2_variant_choice, vae_config_choice, boost_choice, enable_int8_kernels_choice,
+            depth_anything_v2_variant_choice,
+            vae_config_choice, boost_choice, enable_int8_kernels_choice,
             video_profile_choice, image_profile_choice, audio_profile_choice,
             preload_in_VRAM_choice, max_reserved_loras_choice,
             enhancer_enabled_choice, enhancer_quantization_choice, enhancer_mode_choice,
@@ -584,6 +588,9 @@ class ConfigTabPlugin(WAN2GPPlugin):
         if self.args.lock_config:
             if "attention_mode" in old_server_config: new_server_config["attention_mode"] = old_server_config["attention_mode"]
             if "compile" in old_server_config: new_server_config["compile"] = old_server_config["compile"]
+
+        for key in ("depth_anything_v3_process_res", "depth_anything_v3_chunk_size", "depth_anything_v3_chunk_overlap"):
+            new_server_config.pop(key, None)
 
         with open(self.server_config_filename, "w", encoding="utf-8") as writer:
             writer.write(json.dumps(new_server_config, indent=4))

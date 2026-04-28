@@ -104,9 +104,12 @@ from shared.api import get_api_output_options, store_api_output_artifact
 from shared.utils.plugins import PluginManager, WAN2GPApplication, SYSTEM_PLUGINS
 from shared.llm_engines.nanovllm.vllm_support import resolve_lm_decoder_engine
 from shared.gradio import assistant_chat
+from shared.gradio.magic_mask import MagicMaskUI
 from shared import model_dropdowns
 from shared.cli_args import parse_wgp_args
 from collections import defaultdict
+
+MagicMaskUI.patch_image_editor()
 
 # import torch._dynamo as dynamo
 # dynamo.config.recompile_limit = 2000   # default is 256
@@ -121,7 +124,7 @@ AUTOSAVE_TEMPLATE_PATH = AUTOSAVE_FILENAME
 CONFIG_FILENAME = "wgp_config.json"
 PROMPT_VARS_MAX = 10
 target_mmgp_version = "3.7.6"
-WanGP_version = "11.411"
+WanGP_version = "11.50"
 settings_version = 2.58
 max_source_video_frames = 3000
 prompt_enhancer_image_caption_model, prompt_enhancer_image_caption_processor, prompt_enhancer_llm_model, prompt_enhancer_llm_tokenizer = None, None, None, None
@@ -3034,11 +3037,13 @@ def download_models(model_filename = None, model_type= None, file_type = 0, subm
 
 
     if file_type == 0:
+        depth_variant = server_config.get("depth_anything_v2_variant", "vitl")
+        depth_file = {"vitb": "depth_anything_v2_vitb.pth", "da3_metric_large": "depth_anything_v3_metric_large_bf16.safetensors"}.get(depth_variant, "depth_anything_v2_vitl.pth")
         shared_def = {
             "repoId" : "DeepBeepMeep/Wan2.1",
             "sourceFolderList" : [ "pose", "scribble", "flow", "depth", "wav2vec", "chinese-wav2vec2-base", "roformer", "pyannote", "det_align", "" ],
             "fileList" : [ ["dw-ll_ucoco_384.onnx", "yolox_l.onnx"],["netG_A_latest.pth"],  ["raft-things.pth"], 
-                        ["depth_anything_v2_vitl.pth","depth_anything_v2_vitb.pth"],
+                        [depth_file],
                         ["config.json", "feature_extractor_config.json", "model.safetensors", "preprocessor_config.json", "special_tokens_map.json", "tokenizer_config.json", "vocab.json"],
                         ["config.json", "pytorch_model.bin", "preprocessor_config.json"],
                         ["model_bs_roformer_ep_317_sdr_12.9755.ckpt", "model_bs_roformer_ep_317_sdr_12.9755.yaml", "download_checks.json"],
@@ -4572,20 +4577,31 @@ def get_preprocessor(process_type, inpaint_color, pre_video_guide=None):
         anno_ins = lambda img: PoseBodyFaceVideoAnnotator(cfg_dict).forward(img)
     elif process_type=="depth":
 
-        from preprocessing.depth_anything_v2.depth import DepthV2VideoAnnotator
-
-        if server_config.get("depth_anything_v2_variant", "vitl") == "vitl":
+        depth_variant = server_config.get("depth_anything_v2_variant", "vitl")
+        if depth_variant == "da3_metric_large":
+            from preprocessing.depth_anything_v3.depth import DepthV3VideoAnnotator
             cfg_dict = {
-                "PRETRAINED_MODEL": fl.locate_file("depth/depth_anything_v2_vitl.pth"),
-                'MODEL_VARIANT': 'vitl'
+                "PRETRAINED_MODEL": fl.locate_file("depth/depth_anything_v3_metric_large_bf16.safetensors"),
+                "MODEL_NAME": "da3metric-large",
+                "PROCESS_RES": 0,
+                "CHUNK_SIZE": -1,
+                "CHUNK_OVERLAP": 8,
             }
-        else:
+            anno_ins = lambda img: DepthV3VideoAnnotator(cfg_dict).forward(img)
+        elif depth_variant == "vitb":
+            from preprocessing.depth_anything_v2.depth import DepthV2VideoAnnotator
             cfg_dict = {
                 "PRETRAINED_MODEL": fl.locate_file("depth/depth_anything_v2_vitb.pth"),
                 'MODEL_VARIANT': 'vitb',
             }
-
-        anno_ins = lambda img: DepthV2VideoAnnotator(cfg_dict).forward(img)
+            anno_ins = lambda img: DepthV2VideoAnnotator(cfg_dict).forward(img)
+        else:
+            from preprocessing.depth_anything_v2.depth import DepthV2VideoAnnotator
+            cfg_dict = {
+                "PRETRAINED_MODEL": fl.locate_file("depth/depth_anything_v2_vitl.pth"),
+                'MODEL_VARIANT': 'vitl'
+            }
+            anno_ins = lambda img: DepthV2VideoAnnotator(cfg_dict).forward(img)
     elif process_type=="gray":
         from preprocessing.gray import GrayVideoAnnotator
         cfg_dict = {}
@@ -9179,7 +9195,8 @@ def refresh_video_prompt_type_video_mask(state, video_prompt_type, video_prompt_
     image_outputs =  image_mode > 0
     mask_strength_always_enabled = model_def.get("mask_strength_always_enabled", False)  
     image_mask_guide, image_guide, image_mask = switch_image_guide_editor(image_mode, old_video_prompt_type , video_prompt_type, old_image_mask_guide_value, old_image_guide_value, old_image_mask_value )
-    return video_prompt_type, gr.update(visible= visible and not image_outputs), image_mask_guide, image_guide, image_mask, gr.update(visible= visible ) , gr.update(visible= visible and (mask_strength_always_enabled or "G" in video_prompt_type )  )
+    magic_image_btn, magic_video_btn = MagicMaskUI.button_updates(image_mode, video_prompt_type)
+    return video_prompt_type, gr.update(visible= visible and not image_outputs), image_mask_guide, image_guide, image_mask, gr.update(visible= visible ) , gr.update(visible= visible and (mask_strength_always_enabled or "G" in video_prompt_type )  ), magic_image_btn, magic_video_btn
 
 def refresh_video_prompt_type_alignment(state, video_prompt_type, video_prompt_type_video_guide):
     video_prompt_type = del_in_sequence(video_prompt_type, "T")
@@ -9219,7 +9236,8 @@ def refresh_video_prompt_type_video_guide(state, filter_type, video_prompt_type,
             custom_options = True
             custom_checkbox = custom_video_selection.get("type","") == "checkbox"
     mask_strength_always_enabled = model_def.get("mask_strength_always_enabled", False)  
-    return video_prompt_type,  gr.update(visible = visible and not image_outputs), image_guide, gr.update(visible = keep_frames_video_guide_visible), gr.update(visible = visible and "G" in video_prompt_type),  gr.update(visible = mask_visible and( mask_strength_always_enabled or "G" in video_prompt_type)), gr.update(visible= (visible or injected_frames_positions_visible(video_prompt_type) or "K" in video_prompt_type) and any_outpainting), gr.update(visible= visible and mask_selector_visible and  not "U" in video_prompt_type ) ,  gr.update(visible= mask_visible and not image_outputs), image_mask, image_mask_guide, gr.update(visible= mask_visible),  gr.update(visible = ref_images_visible ), gr.update(visible = injected_frames_positions_visible(video_prompt_type)), gr.update(visible= custom_options and not custom_checkbox ), gr.update(visible= custom_options and custom_checkbox ), gr.update(visible = input_video_strength_visible(model_def, image_prompt_type, video_prompt_type)) 
+    magic_image_btn, magic_video_btn = MagicMaskUI.button_updates(image_mode, video_prompt_type)
+    return video_prompt_type,  gr.update(visible = visible and not image_outputs), image_guide, gr.update(visible = keep_frames_video_guide_visible), gr.update(visible = visible and "G" in video_prompt_type),  gr.update(visible = mask_visible and( mask_strength_always_enabled or "G" in video_prompt_type)), gr.update(visible= (visible or injected_frames_positions_visible(video_prompt_type) or "K" in video_prompt_type) and any_outpainting), gr.update(visible= visible and mask_selector_visible and  not "U" in video_prompt_type ) ,  gr.update(visible= mask_visible and not image_outputs), image_mask, image_mask_guide, gr.update(visible= mask_visible),  gr.update(visible = ref_images_visible ), gr.update(visible = injected_frames_positions_visible(video_prompt_type)), gr.update(visible= custom_options and not custom_checkbox ), gr.update(visible= custom_options and custom_checkbox ), gr.update(visible = input_video_strength_visible(model_def, image_prompt_type, video_prompt_type)), magic_image_btn, magic_video_btn
 
 def refresh_video_prompt_type_video_custom_dropbox(state, video_prompt_type, video_prompt_type_video_custom_dropbox):
     model_type = get_state_model_type(state)
@@ -9451,7 +9469,14 @@ def get_resolution_choices(current_resolution_choice, model_resolutions= None):
             ("720x720 (1:1)", "720x720"),
             ("832x480 (16:9)", "832x480"),
             ("480x832 (9:16)", "480x832"),
+            # 384p
+            ("672x384 (16:9)", "672x384"),
+            ("384x672 (9:16)", "384x672"),
             ("512x512 (1:1)", "512x512"),
+            # 320p
+            ("576x320 (16:9)", "576x320"),
+            ("320x576 (9:16)", "320x576"),
+            ("448x448 (1:1)", "448x448"),
             # 256p
             ("448x256 (7:4)", "448x256"),
             ("256x448 (4:7)", "256x448"),
@@ -9476,7 +9501,8 @@ def get_resolution_choices(current_resolution_choice, model_resolutions= None):
 
 group_thresholds = {
     "256p": 448 * 256,
-    "360p": 320 * 640,    
+    "320p": 448 * 448,
+    "384p": 512 * 512,
     "480p": 832 * 624,     
     "540p": 960 * 544,   
     "720p": 1024 * 1024,  
@@ -10069,6 +10095,8 @@ def generate_video_tab(update_form = False, state_dict = None, ui_defaults = Non
 
                 image_guide = gr.Image(label= "Control Image", height = 800, type ="pil", visible= image_mode_value==1 and "V" in video_prompt_type_value and ("U" in video_prompt_type_value or "A" not in video_prompt_type_value ) , value= ui_defaults.get("image_guide", None))
                 video_guide = gr.Video(label= "Control Video", height = gallery_height, visible= (not image_outputs) and "V" in video_prompt_type_value, value= ui_defaults.get("video_guide", None), elem_id="video_input")
+                magic_mask_visible = "V" in video_prompt_type_value and "A" in video_prompt_type_value and "U" not in video_prompt_type_value
+                magic_mask_uis = []
                 if image_mode_value >= 1:  
                     image_guide_value = ui_defaults.get("image_guide", None)
                     image_mask_value = ui_defaults.get("image_mask", None)
@@ -10078,25 +10106,33 @@ def generate_video_tab(update_form = False, state_dict = None, ui_defaults = Non
                         image_mask_guide_value = { "background" : image_guide_value, "composite" : None}
                         image_mask_guide_value["layers"] = [] if image_mask_value is None else [rgb_bw_to_rgba_mask(image_mask_value)]
 
-                    image_mask_guide = gr.ImageEditor(
-                        label="Control Image to be Inpainted" if image_mode_value == 2 else "Control Image and Mask",
-                        value = image_mask_guide_value, 
-                        type='pil',
-                        sources=["upload", "webcam"],
-                        image_mode='RGB',
-                        layers=False,
-                        brush=gr.Brush(colors=["#FFFFFF"], color_mode="fixed"),
-                        # fixed_canvas= True,
-                        # width=800,  
-                        height=800,
-                        # transforms=None,
-                        # interactive=True, 
-                        elem_id="img_editor",
-                        visible= "V" in video_prompt_type_value and "A" in video_prompt_type_value and "U" not in video_prompt_type_value
-                    )
+                    with gr.Column(elem_classes=["wangp-magic-mask-anchor", "wangp-magic-mask-anchor--image-editor"]):
+                        image_mask_guide = gr.ImageEditor(
+                            label="Control Image to be Inpainted" if image_mode_value == 2 else "Control Image and Mask",
+                            value = image_mask_guide_value,
+                            type='pil',
+                            sources=["upload", "webcam"],
+                            image_mode='RGB',
+                            layers=False,
+                            brush=gr.Brush(colors=["#FFFFFF"], color_mode="fixed"),
+                            # fixed_canvas= True,
+                            # width=800,
+                            height=800,
+                            # transforms=None,
+                            # interactive=True,
+                            elem_id="img_editor",
+                            visible=magic_mask_visible
+                        )
+                        magic_mask_ui = MagicMaskUI().render(visible=magic_mask_visible, trigger_mode="editor")
+                        magic_mask_uis.append(magic_mask_ui)
+                        magic_mask_image_btn = magic_mask_ui.trigger
                     any_control_image = True
                 else:
-                    image_mask_guide = gr.ImageEditor(value = None, visible = False, elem_id="img_editor")
+                    with gr.Column(elem_classes=["wangp-magic-mask-anchor", "wangp-magic-mask-anchor--image-editor"]):
+                        image_mask_guide = gr.ImageEditor(value = None, visible = False, elem_id="img_editor")
+                        magic_mask_ui = MagicMaskUI().render(visible=False, trigger_mode="editor")
+                        magic_mask_uis.append(magic_mask_ui)
+                        magic_mask_image_btn = magic_mask_ui.trigger
 
 
                 denoising_strength = setting_slider("denoising_strength", visible="G" in video_prompt_type_value)
@@ -10122,7 +10158,14 @@ def generate_video_tab(update_form = False, state_dict = None, ui_defaults = Non
                             video_guide_outpainting_right = gr.Slider(0, 100, value= video_guide_outpainting_list[3], step=5, label=f"Right {outpainting_label_suffix}", show_reset_button= False)
                 # image_mask = gr.Image(label= "Image Mask Area (for Inpainting, white = Control Area, black = Unchanged)", type ="pil", visible= image_mode_value==1 and "V" in video_prompt_type_value and "A" in video_prompt_type_value and not "U" in video_prompt_type_value , height = gallery_height, value= ui_defaults.get("image_mask", None)) 
                 image_mask = gr.Image(label= "Image Mask Area (for Inpainting, white = Control Area, black = Unchanged)", type ="pil", visible= False, height = gallery_height, value= ui_defaults.get("image_mask", None)) 
-                video_mask = gr.Video(label= "Video Mask Area (for Inpainting, white = Control Area, black = Unchanged)", visible= (not image_outputs) and "V" in video_prompt_type_value and "A" in video_prompt_type_value and not "U" in video_prompt_type_value , height = gallery_height, value= ui_defaults.get("video_mask", None)) 
+                with gr.Column(elem_classes=["wangp-magic-mask-anchor"]):
+                    video_mask = gr.Video(label= "Video Mask Area (for Inpainting, white = Control Area, black = Unchanged)", visible=(not image_outputs) and magic_mask_visible, height=gallery_height, value=ui_defaults.get("video_mask", None))
+                    if not image_outputs:
+                        magic_mask_ui = MagicMaskUI().render(visible=magic_mask_visible)
+                        magic_mask_uis.append(magic_mask_ui)
+                        magic_mask_video_btn = magic_mask_ui.trigger
+                    else:
+                        magic_mask_video_btn = MagicMaskUI.hidden_trigger()
                 mask_strength_always_enabled = model_def.get("mask_strength_always_enabled", False)  
                 masking_strength = setting_slider("masking_strength", visible=(mask_strength_always_enabled or "G" in video_prompt_type_value) and "V" in video_prompt_type_value and "A" in video_prompt_type_value and not "U" in video_prompt_type_value)
                 mask_expand = setting_slider("mask_expand", visible="V" in video_prompt_type_value and "A" in video_prompt_type_value and not "U" in video_prompt_type_value)
@@ -11062,7 +11105,7 @@ def generate_video_tab(update_form = False, state_dict = None, ui_defaults = Non
                                       video_prompt_type_video_guide, video_prompt_type_video_guide_alt, video_prompt_type_video_mask, video_prompt_type_image_refs, video_prompt_type_video_custom_dropbox, video_prompt_type_video_custom_checkbox,
                                       apg_col, audio_prompt_type_sources,  audio_prompt_type_remux, audio_prompt_type_remux_row, force_fps_col,
                                       video_guide_outpainting_col,video_guide_outpainting_top, video_guide_outpainting_bottom, video_guide_outpainting_left, video_guide_outpainting_right,
-                                      video_guide_outpainting_checkbox, video_guide_outpainting_ratio, video_guide_outpainting_row, show_advanced, video_info_to_control_video_btn, video_info_to_video_source_btn, sample_solver_row,
+                                      video_guide_outpainting_checkbox, video_guide_outpainting_ratio, video_guide_outpainting_row, show_advanced, magic_mask_image_btn, magic_mask_video_btn, video_info_to_control_video_btn, video_info_to_video_source_btn, sample_solver_row,
                                       video_buttons_row, deleted_video_buttons_row, image_buttons_row, video_postprocessing_tab, audio_remuxing_tab, PP_MMAudio_col, PP_MMAudio_setting, PP_MMAudio_row, PP_custom_audio_row, 
                                       audio_buttons_row, deleted_audio_buttons_row, video_info_extract_audio_settings_btn, video_info_to_audio_guide_btn, video_info_to_audio_guide2_btn, video_info_to_audio_source_btn, video_info_eject_audio_btn,
                                       video_info_to_start_image_btn, video_info_to_end_image_btn, video_info_to_reference_image_btn, video_info_to_image_guide_btn, video_info_to_image_mask_btn,
@@ -11100,13 +11143,13 @@ def generate_video_tab(update_form = False, state_dict = None, ui_defaults = Non
             image_prompt_type_radio.change(fn=refresh_image_prompt_type_radio, inputs=[state, image_prompt_type, image_prompt_type_radio, video_prompt_type], outputs=[image_prompt_type, image_start_row, image_end_row, video_source, input_video_strength, keep_frames_video_source, image_prompt_type_endcheckbox], show_progress="hidden" ) 
             image_prompt_type_endcheckbox.change(fn=refresh_image_prompt_type_endcheckbox, inputs=[state, image_prompt_type, image_prompt_type_radio, image_prompt_type_endcheckbox, video_prompt_type], outputs=[image_prompt_type, image_end_row, input_video_strength] ) 
             video_prompt_type_image_refs.input(fn=refresh_video_prompt_type_image_refs, inputs = [state, video_prompt_type, video_prompt_type_image_refs,image_mode, image_prompt_type], outputs = [video_prompt_type, image_refs_row, remove_background_images_ref,  image_refs_relative_size, frames_positions,video_guide_outpainting_col, input_video_strength], show_progress="hidden")
-            video_prompt_type_video_guide.input(fn=refresh_video_prompt_type_video_guide,     inputs = [state, gr.State(""),   video_prompt_type, video_prompt_type_video_guide,     image_mode, image_mask_guide, image_guide, image_mask, image_prompt_type], outputs = [video_prompt_type, video_guide, image_guide, keep_frames_video_guide, denoising_strength, masking_strength,  video_guide_outpainting_col, video_prompt_type_video_mask, video_mask, image_mask, image_mask_guide, mask_expand, image_refs_row, frames_positions, video_prompt_type_video_custom_dropbox, video_prompt_type_video_custom_checkbox, input_video_strength], show_progress="hidden") 
-            video_prompt_type_video_guide_alt.input(fn=refresh_video_prompt_type_video_guide, inputs = [state, gr.State("alt"),video_prompt_type, video_prompt_type_video_guide_alt, image_mode, image_mask_guide, image_guide, image_mask, image_prompt_type], outputs = [video_prompt_type, video_guide, image_guide, keep_frames_video_guide, denoising_strength, masking_strength, video_guide_outpainting_col, video_prompt_type_video_mask, video_mask, image_mask, image_mask_guide, mask_expand, image_refs_row, frames_positions, video_prompt_type_video_custom_dropbox, video_prompt_type_video_custom_checkbox, input_video_strength], show_progress="hidden") 
+            video_prompt_type_video_guide.input(fn=refresh_video_prompt_type_video_guide,     inputs = [state, gr.State(""),   video_prompt_type, video_prompt_type_video_guide,     image_mode, image_mask_guide, image_guide, image_mask, image_prompt_type], outputs = [video_prompt_type, video_guide, image_guide, keep_frames_video_guide, denoising_strength, masking_strength,  video_guide_outpainting_col, video_prompt_type_video_mask, video_mask, image_mask, image_mask_guide, mask_expand, image_refs_row, frames_positions, video_prompt_type_video_custom_dropbox, video_prompt_type_video_custom_checkbox, input_video_strength, magic_mask_image_btn, magic_mask_video_btn], show_progress="hidden")
+            video_prompt_type_video_guide_alt.input(fn=refresh_video_prompt_type_video_guide, inputs = [state, gr.State("alt"),video_prompt_type, video_prompt_type_video_guide_alt, image_mode, image_mask_guide, image_guide, image_mask, image_prompt_type], outputs = [video_prompt_type, video_guide, image_guide, keep_frames_video_guide, denoising_strength, masking_strength, video_guide_outpainting_col, video_prompt_type_video_mask, video_mask, image_mask, image_mask_guide, mask_expand, image_refs_row, frames_positions, video_prompt_type_video_custom_dropbox, video_prompt_type_video_custom_checkbox, input_video_strength, magic_mask_image_btn, magic_mask_video_btn], show_progress="hidden")
             # video_prompt_type_video_guide_alt.input(fn=refresh_video_prompt_type_video_guide_alt, inputs = [state, video_prompt_type, video_prompt_type_video_guide_alt, image_mode, image_mask_guide, image_guide, image_mask], outputs = [video_prompt_type, video_guide, image_guide, image_refs_row, denoising_strength, masking_strength, video_mask, mask_expand, image_mask_guide, image_guide, image_mask, keep_frames_video_guide ], show_progress="hidden")
             video_prompt_type_video_custom_dropbox.input(fn= refresh_video_prompt_type_video_custom_dropbox, inputs=[state, video_prompt_type, video_prompt_type_video_custom_dropbox], outputs = video_prompt_type)
             video_prompt_type_video_custom_checkbox.input(fn= refresh_video_prompt_type_video_custom_checkbox, inputs=[state, video_prompt_type, video_prompt_type_video_custom_checkbox], outputs = video_prompt_type)
             # image_mask_guide.upload(fn=update_image_mask_guide, inputs=[state, image_mask_guide], outputs=[image_mask_guide], show_progress="hidden")
-            video_prompt_type_video_mask.input(fn=refresh_video_prompt_type_video_mask, inputs = [state, video_prompt_type, video_prompt_type_video_mask, image_mode, image_mask_guide, image_guide, image_mask], outputs = [video_prompt_type, video_mask, image_mask_guide, image_guide, image_mask, mask_expand, masking_strength], show_progress="hidden") 
+            video_prompt_type_video_mask.input(fn=refresh_video_prompt_type_video_mask, inputs = [state, video_prompt_type, video_prompt_type_video_mask, image_mode, image_mask_guide, image_guide, image_mask], outputs = [video_prompt_type, video_mask, image_mask_guide, image_guide, image_mask, mask_expand, masking_strength, magic_mask_image_btn, magic_mask_video_btn], show_progress="hidden")
             video_prompt_type_alignment.input(fn=refresh_video_prompt_type_alignment, inputs = [state, video_prompt_type, video_prompt_type_alignment], outputs = [video_prompt_type])
             multi_prompts_gen_type.select(fn=refresh_prompt_labels, inputs=[state, multi_prompts_gen_type, image_mode], outputs=[prompt, wizard_prompt, image_end], show_progress="hidden")
             video_guide_outpainting_top.input(fn=update_video_guide_outpainting, inputs=[video_guide_outpainting, video_guide_outpainting_top, gr.State(0)], outputs = [video_guide_outpainting], trigger_mode="multiple" )
@@ -11171,6 +11214,20 @@ def generate_video_tab(update_form = False, state_dict = None, ui_defaults = Non
                 outputs=[modal_container],
                 show_progress="hidden"
             )
+            for magic_mask_ui in magic_mask_uis:
+                magic_mask_ui.mount(
+                    state=state,
+                    image_mode=image_mode,
+                    video_guide=video_guide,
+                    image_mask_guide=image_mask_guide,
+                    image_guide=image_guide,
+                    image_mask=image_mask,
+                    video_mask=video_mask,
+                    download_assets=lambda download_def: process_files_def(**download_def),
+                    acquire_gpu=lambda state_value, process_id, process_name: acquire_GPU_ressources(state_value, process_id, process_name, gr=gr),
+                    release_gpu=release_GPU_ressources,
+                    get_model_settings=get_current_model_settings,
+                )
             pause_btn.click(pause_generation, [state], [ pause_btn, resume_btn] )
             resume_btn.click(resume_generation, [state] )
             abort_btn.click(abort_generation, [state, gr.State("")], [ abort_btn, queue_html], show_progress="hidden" ) #.then(refresh_gallery, inputs = [state, gen_info], outputs = [output, gen_info, queue_html] )
@@ -11677,6 +11734,10 @@ def get_js():
     click_brush_js = """
     () => {
         setTimeout(() => {
+            if (window.__wangpMagicMaskNS?.focusVisibleImageEditor?.(true)) {
+                console.log('Image editor focused and Brush button clicked');
+                return;
+            }
             const brushButton = document.querySelector('button[aria-label="Brush"]');
             if (brushButton) {
                 brushButton.click();
@@ -11694,6 +11755,7 @@ def create_ui():
     css_path = os.path.join(os.path.dirname(__file__), "shared", "gradio", "ui_styles.css")
     with open(css_path, "r", encoding="utf-8") as f:
         css = f.read()
+    css += "\n" + MagicMaskUI.get_css()
     css += "\n" + assistant_chat.get_css()
     UI_theme = server_config.get("UI_theme", "default")
     UI_theme  = args.theme if len(args.theme) > 0 else UI_theme
@@ -11707,6 +11769,7 @@ def create_ui():
     with open(js_path, "r", encoding="utf-8") as f:
         js = f.read()
     js += AudioGallery.get_javascript()
+    js += MagicMaskUI.get_javascript()
     js += assistant_chat.get_javascript()
     AudioGallery.install_gradio_upload_mtime_patch()
     app.initialize_plugins(globals())

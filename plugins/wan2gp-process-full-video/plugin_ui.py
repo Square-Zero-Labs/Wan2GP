@@ -24,7 +24,7 @@ def create_config_ui(self, api_session):
     get_lora_dir = self.get_lora_dir
     get_base_model_type = self.get_base_model_type
     library = ProcessLibrary(get_model_def=get_model_def, get_lora_dir=get_lora_dir, get_base_model_type=get_base_model_type)
-    output_resolution_choices = [("1080p", "1080p"), ("900p", "900p"), ("720p", "720p"), ("540p", "540p"), ("480p", "480p"), ("360p", "360p"), ("256p", "256p")]
+    output_resolution_choices = [("1080p", "1080p"), ("900p", "900p"), ("720p", "720p"), ("540p", "540p"), ("480p", "480p"), ("384p", "384p"), ("320p", "320p"), ("256p", "256p")]
     output_resolution_values = {value for _, value in output_resolution_choices}
     source_audio_track_choices = [("Auto", "")] + [(f"Audio Track {track_no}", str(track_no)) for track_no in range(1, 10)]
     source_audio_track_values = {value for _, value in source_audio_track_choices}
