@@ -124,7 +124,17 @@ def _mask_progress_html(keyword, done, total):
     return _progress_html(f'Generating Mask "{keyword}"', percent)
 
 
-def _run_keyword_mask(video, keyword, abort_event):
+def _current_keyword_progress(keywords, done, total):
+    keyword_count = max(len(keywords), 1)
+    total_steps = max(float(total), 1.0)
+    done = max(0.0, min(float(done), total_steps))
+    current_index = min(keyword_count - 1, int(done * keyword_count / total_steps))
+    keyword_steps = total_steps / keyword_count
+    keyword_done = max(0.0, min(keyword_steps, done - current_index * keyword_steps))
+    return keywords[current_index], keyword_done, keyword_steps
+
+
+def _run_keyword_mask(video, keywords, abort_event):
     progress_events = queue.Queue()
 
     def progress_callback(done, total):
@@ -136,7 +146,7 @@ def _run_keyword_mask(video, keyword, abort_event):
         try:
             if abort_event.is_set():
                 raise MagicMaskAbort()
-            progress_events.put(("done", magic_mask.generate_keyword_masks(video, keyword, progress_callback=progress_callback)))
+            progress_events.put(("done", magic_mask.generate_keyword_masks(video, keywords, progress_callback=progress_callback)))
         except MagicMaskAbort as exc:
             progress_events.put(("abort", exc))
         except Exception as exc:
@@ -212,27 +222,23 @@ def _generate_magic_mask(
                 yield gr.update(), gr.update(), gr.update(), _status_html("Magic Mask needs a control image.", "error"), gr.update(visible=True), "", _exit_button_idle(), _abort_button_idle(), None, None
                 return
             background, video = magic_mask.prepare_image_mask_input(source_image)
-            merged_mask = None
             total = len(keywords)
-            for index, keyword in enumerate(keywords):
-                mask_generator = _run_keyword_mask(video, keyword, abort_event)
-                progress_started = False
-                try:
-                    while True:
-                        done, frame_total = next(mask_generator)
-                        if done <= 0:
-                            continue
-                        progress_started = True
-                        yield gr.update(), gr.update(), gr.update(), _keywords_processed_html(index, total), gr.update(visible=True), _mask_progress_html(keyword, done, frame_total), _exit_button_running(), _abort_button_running(), None, None
-                except StopIteration as stop:
-                    keyword_mask = stop.value[0]
-                merged_mask = magic_mask.merge_keyword_masks(merged_mask, keyword_mask)
-                if not progress_started:
-                    yield gr.update(), gr.update(), gr.update(), _keywords_processed_html(index, total), gr.update(visible=True), _mask_progress_html(keyword, 1, 1), _exit_button_running(), _abort_button_running(), None, None
-                if index + 1 < total:
-                    yield gr.update(), gr.update(), gr.update(), _keywords_processed_html(index + 1, total), gr.update(visible=True), _mask_progress_html(keywords[index + 1], 0, 1), _exit_button_running(), _abort_button_running(), None, None
-                else:
-                    yield gr.update(), gr.update(), gr.update(), _keywords_processed_html(index + 1, total), gr.update(visible=True), _mask_progress_html(keyword, 1, 1), _exit_button_running(), _abort_button_running(), None, None
+            mask_generator = _run_keyword_mask(video, keywords, abort_event)
+            progress_started = False
+            try:
+                while True:
+                    done, frame_total = next(mask_generator)
+                    if done <= 0:
+                        continue
+                    progress_started = True
+                    processed = min(total, int(done * total / max(frame_total, 1)))
+                    current_keyword, keyword_done, keyword_total = _current_keyword_progress(keywords, done, frame_total)
+                    yield gr.update(), gr.update(), gr.update(), _keywords_processed_html(processed, total), gr.update(visible=True), _mask_progress_html(current_keyword, keyword_done, keyword_total), _exit_button_running(), _abort_button_running(), None, None
+            except StopIteration as stop:
+                merged_mask = stop.value[0]
+            if not progress_started:
+                yield gr.update(), gr.update(), gr.update(), _keywords_processed_html(0, total), gr.update(visible=True), _mask_progress_html(keywords[0], 1, 1), _exit_button_running(), _abort_button_running(), None, None
+            yield gr.update(), gr.update(), gr.update(), _keywords_processed_html(total, total), gr.update(visible=True), _mask_progress_html(keywords[-1], 1, 1), _exit_button_running(), _abort_button_running(), None, None
             yield gr.update(), gr.update(), gr.update(), _status_html("Saving Image Mask..."), gr.update(visible=True), "", _exit_button_running(), _abort_button_running(), None, None
             _raise_if_aborted(abort_event)
             mask_image = magic_mask.mask_to_image(magic_mask.finalize_masks(merged_mask, negative_mask=negative_mask))
@@ -248,27 +254,23 @@ def _generate_magic_mask(
             return
         _raise_if_aborted(abort_event)
         video_path, video, fps = magic_mask.prepare_video_mask_input(video_guide)
-        merged_mask = None
         total = len(keywords)
-        for index, keyword in enumerate(keywords):
-            mask_generator = _run_keyword_mask(video, keyword, abort_event)
-            progress_started = False
-            try:
-                while True:
-                    done, frame_total = next(mask_generator)
-                    if done <= 0:
-                        continue
-                    progress_started = True
-                    yield gr.update(), gr.update(), gr.update(), _keywords_processed_html(index, total), gr.update(visible=True), _mask_progress_html(keyword, done, frame_total), _exit_button_running(), _abort_button_running(), None, None
-            except StopIteration as stop:
-                keyword_mask = stop.value
-            merged_mask = magic_mask.merge_keyword_masks(merged_mask, keyword_mask)
-            if not progress_started:
-                yield gr.update(), gr.update(), gr.update(), _keywords_processed_html(index, total), gr.update(visible=True), _mask_progress_html(keyword, 1, 1), _exit_button_running(), _abort_button_running(), None, None
-            if index + 1 < total:
-                yield gr.update(), gr.update(), gr.update(), _keywords_processed_html(index + 1, total), gr.update(visible=True), _mask_progress_html(keywords[index + 1], 0, 1), _exit_button_running(), _abort_button_running(), None, None
-            else:
-                yield gr.update(), gr.update(), gr.update(), _keywords_processed_html(index + 1, total), gr.update(visible=True), _mask_progress_html(keyword, 1, 1), _exit_button_running(), _abort_button_running(), None, None
+        mask_generator = _run_keyword_mask(video, keywords, abort_event)
+        progress_started = False
+        try:
+            while True:
+                done, frame_total = next(mask_generator)
+                if done <= 0:
+                    continue
+                progress_started = True
+                processed = min(total, int(done * total / max(frame_total, 1)))
+                current_keyword, keyword_done, keyword_total = _current_keyword_progress(keywords, done, frame_total)
+                yield gr.update(), gr.update(), gr.update(), _keywords_processed_html(processed, total), gr.update(visible=True), _mask_progress_html(current_keyword, keyword_done, keyword_total), _exit_button_running(), _abort_button_running(), None, None
+        except StopIteration as stop:
+            merged_mask = stop.value
+        if not progress_started:
+            yield gr.update(), gr.update(), gr.update(), _keywords_processed_html(0, total), gr.update(visible=True), _mask_progress_html(keywords[0], 1, 1), _exit_button_running(), _abort_button_running(), None, None
+        yield gr.update(), gr.update(), gr.update(), _keywords_processed_html(total, total), gr.update(visible=True), _mask_progress_html(keywords[-1], 1, 1), _exit_button_running(), _abort_button_running(), None, None
         yield gr.update(), gr.update(), gr.update(), _status_html("Saving Video Mask..."), gr.update(visible=True), "", _exit_button_running(), _abort_button_running(), None, None
         mask_path = magic_mask.save_mask_video(video_path, magic_mask.finalize_masks(merged_mask, negative_mask=negative_mask), fps, keywords, abort_callback=lambda: _raise_if_aborted(abort_event))
         if isinstance(ui_settings, dict):
@@ -956,7 +958,7 @@ WMM.scheduleMount();
             with gr.Column(elem_classes=["wangp-magic-mask-card"]):
                 gr.HTML("<div class='wangp-magic-mask-titlebar'><div class='wangp-magic-mask-heading'>Magic Mask</div></div>")
                 with gr.Column(elem_classes=["wangp-magic-mask-body"]):
-                    gr.HTML("<div class='wangp-magic-mask-intro'>Enter the list of Object or Persons to track and that will be used to build the Mask. Each object / persons should be separated by a \",\"</div>")
+                    gr.HTML("<div class='wangp-magic-mask-intro'>Enter the list of Object or Persons to track and that will be used to build the Mask. Each object / person should be separated by a \",\". For example: \"blue car, woman to the right\"</div>")
                     with gr.Row(elem_classes=["wangp-magic-mask-keyword-row"]):
                         self.keywords = gr.Textbox(show_label=False, placeholder="person, car, sky", lines=1, scale=4, elem_classes=["wangp-magic-mask-keywords"])
                         with gr.Group(elem_classes=["wangp-magic-mask-negative"]):

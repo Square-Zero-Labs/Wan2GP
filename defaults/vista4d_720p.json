@@ -2,7 +2,7 @@
     "model": {
         "name": "Wan2.1 Vista4D 720p 14B",
         "architecture": "vista4d",
-        "description": "Vista4D is a video reshooting framework which synthesizes the dynamic scene represented by an input source video from novel camera trajectories and viewpoints.",
+        "description": "Vista4D is a video reshooting framework which synthesizes the dynamic scene represented by an input source video from novel camera trajectories and viewpoints. For best efficiency, you must list all the dynamic objects / people in the 'Dynamic object keywords' input. ",
         "URLs": [
             "https://huggingface.co/DeepBeepMeep/Wan2.1/resolve/main/wan2.1_vista4d_720p49_14B_bf16.safetensors",
             "https://huggingface.co/DeepBeepMeep/Wan2.1/resolve/main/wan2.1_vista4d_720p49_14B_quanto_bf16_int8.safetensors"

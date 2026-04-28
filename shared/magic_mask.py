@@ -127,8 +127,11 @@ def prepare_video_mask_input(video_path) -> tuple[str, np.ndarray, int]:
     return video_path, video, fps
 
 
-def generate_keyword_masks(video: np.ndarray, keyword: str, *, batch_size=None, no_hole=True, progress_callback=None) -> np.ndarray:
-    return _run_sam3(video, [keyword], batch_size, no_hole, progress_callback=progress_callback)
+def generate_keyword_masks(video: np.ndarray, keyword_text: str | Iterable[str], *, batch_size=None, no_hole=True, progress_callback=None) -> np.ndarray:
+    keywords = parse_keywords(keyword_text)
+    if len(keywords) == 0:
+        return np.zeros(video.shape[:3], dtype=np.bool_)
+    return _run_sam3(video, keywords, batch_size, no_hole, progress_callback=progress_callback)
 
 
 def merge_keyword_masks(current_mask: np.ndarray | None, keyword_mask: np.ndarray) -> np.ndarray:

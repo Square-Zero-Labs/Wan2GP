@@ -10,6 +10,7 @@ import torch
 from PIL import Image
 
 from shared.utils import files_locator as fl
+from .logger import get_logger
 
 
 _PACKAGE_ROOT = Path(__file__).resolve().parent
@@ -19,6 +20,7 @@ _SAM3_BPE_NAME = "bpe_simple_vocab_16e6.txt.gz"
 KEEP_VIDEO_FRAMES_ON_CUDA = True
 _TEXT_ENCODER_CACHE = None
 _TEXT_ENCODER_CACHE_KEY = None
+logger = get_logger(__name__)
 
 
 def _cleanup():
@@ -89,6 +91,10 @@ def _bf16_prompt_payload(value):
     if isinstance(value, tuple):
         return tuple(_bf16_prompt_payload(item) for item in value)
     return value
+
+
+def _format_keywords_for_log(keywords: list[str]):
+    return ", ".join(f"'{keyword}'" for keyword in keywords)
 
 
 def _to_numpy(value):
@@ -266,7 +272,11 @@ def run_sam3_video(
     checkpoint_path, version = _checkpoint_path()
     bpe_path = _bpe_path()
     _cleanup()
-    preencoded_prompts = _encode_keyword_prompts(model_builder, checkpoint_path, bpe_path, keywords) if version == "sam3.1" and preencode_text else None
+    if version == "sam3.1" and preencode_text:
+        logger.info("SAM3 encoding keywords before propagation: %s", _format_keywords_for_log(keywords))
+        preencoded_prompts = _encode_keyword_prompts(model_builder, checkpoint_path, bpe_path, keywords)
+    else:
+        preencoded_prompts = None
     video_predictor = _load_predictor(
         model_builder,
         checkpoint_path,
@@ -286,7 +296,10 @@ def run_sam3_video(
     session_id = response["session_id"]
     dynamic_mask = np.zeros((num_frames, height, width), dtype=np.bool_)
     try:
-        for keyword in keywords:
+        total_progress_steps = len(keywords) * num_frames
+        for keyword_index, keyword in enumerate(keywords):
+            progress_base = keyword_index * num_frames
+            logger.info("SAM3 keyword currently being processed: '%s'", keyword)
             request = {"type": "add_prompt", "session_id": session_id, "frame_index": 0, "text": keyword}
             if preencoded_prompts is not None:
                 request["preencoded_text_outputs"] = _bf16_prompt_payload(preencoded_prompts[keyword])
@@ -294,13 +307,13 @@ def run_sam3_video(
                 result = video_predictor.handle_request(request)
                 dynamic_mask[0] |= _sam3_outputs_to_binary_mask(result.get("outputs") if isinstance(result, dict) else None, height, width)
                 if progress_callback is not None:
-                    progress_callback(0, num_frames)
+                    progress_callback(progress_base, total_progress_steps)
                 internal_progress_seen = False
 
                 def model_progress_callback(done, total):
                     nonlocal internal_progress_seen
                     internal_progress_seen = True
-                    progress_callback(done, total)
+                    progress_callback(min(progress_base + int(done), total_progress_steps), total_progress_steps)
 
                 stream_request = {
                     "type": "propagate_in_video",
@@ -315,7 +328,7 @@ def run_sam3_video(
                 for result in video_predictor.handle_stream_request(stream_request):
                     propagated_frames += 1
                     if progress_callback is not None and not internal_progress_seen:
-                        progress_callback(propagated_frames, num_frames)
+                        progress_callback(min(progress_base + propagated_frames, total_progress_steps), total_progress_steps)
                     outputs = result["outputs"]
                     dynamic_mask[result["frame_index"]] |= _sam3_outputs_to_binary_mask(outputs, height, width)
     finally:

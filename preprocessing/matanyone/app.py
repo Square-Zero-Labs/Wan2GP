@@ -375,6 +375,9 @@ def _sam3_propagate_keywords(video_state, keyword_prompts, start_frame, end_fram
 
     alpha = [np.zeros((*frames[0].shape[:2], 1), dtype=np.uint8) for _ in frames]
     video_pil = [Image.fromarray(frame) for frame in frames]
+    keywords = sorted({prompt["keyword"] for prompt in keyword_prompts})
+    logger.info("SAM3 encoding keywords before propagation: %s", ", ".join(f"'{keyword}'" for keyword in keywords))
+    preencoded_prompts = encode_sam3_keyword_prompts(keywords, keep_text_encoder_loaded=True)
     for prompt in keyword_prompts:
         local_frame_idx = prompt["frame_idx"] - start_frame
         if local_frame_idx < 0 or local_frame_idx >= len(frames):
@@ -382,7 +385,7 @@ def _sam3_propagate_keywords(video_state, keyword_prompts, start_frame, end_fram
         session_id = None
         try:
             logger.info("SAM3 keyword currently being processed: '%s'", prompt["keyword"])
-            preencoded = _sam3_bf16_prompt_payload(encode_sam3_keyword_prompts([prompt["keyword"]], keep_text_encoder_loaded=True)[prompt["keyword"]])
+            preencoded = _sam3_bf16_prompt_payload(preencoded_prompts[prompt["keyword"]])
             _sam3_load_model_to_gpu()
             response = _ensure_sam3_predictor().handle_request({"type": "start_session", "resource_path": video_pil, "offload_video_to_cpu": False})
             session_id = response["session_id"]

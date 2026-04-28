@@ -33,6 +33,18 @@ WanGP supports the Wan (and derived models) but also Hunyuan Video, Flux, Qwen, 
 
 
 ## 🔥 Latest Updates : 
+### 28th of April 2026: WanGP v11.50, a Kind of Magic
+
+- **Vista 4D**: Vista4D allows a *Video Reshooting* of a *Dynamic scene* from novel camera trajectories and viewpoints. In other words this Wan 2.1 model will let you relive from a different (moving) perspective a scene with moving people or objects. The sequences are quite short (usually 49 frames, max around 97 frames) but it is a lot of fun as for once this really works. 
+
+In real life, there is no chance you should have been able to run this model (it requires x3 the amount of VRAM than what is usally required for equivalent output res and the preprocessing needs 24 GB of VRAM to build a 4D map). But once again thanks to WanGP magic VRAM requirements have been reduced to 10 GB of VRAM or less.
+
+It is highly recommended to apply the *Lightx2v 4 steps* lora profile. Also for best efficiency, you must list all the dynamic objects / people in the *Dynamic object keywords* input.
+
+- **Magic Mask**: generating a *Video Mask* or *Image Mask* has never been easier and faster. No need to get into the *Video Mask Generator* tab, just click the *Magic Wand* next to *Mask field* and enter a few keywords like *blue car* or *lady to the right* and a high quality mask powered by *SAM3* will be generated automatically. You will appreciate the very good *Temporal Consistency* brought by SAM3.
+
+- **Video Mask Generator with SAM3 support**: if you still need to generate complex masks you can combine the good old point and click masks with the SAM3 / Magic Mask masks. You need to enable this feature in the *Config / Extensions* tab.
+
 ### 25th of April 2026: WanGP v11.41, LTX-2 Mega Mix Part 2
 More nice goodies for **LTX-2**:
 - **HDR Control Video support**: you can now provide an HDR Control Video it will be automatically converted to SDR if model doesnt support HDR
