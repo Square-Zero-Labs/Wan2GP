@@ -544,16 +544,15 @@ class ProcessRunner:
             yield self.ui_update(status_ui.render_chunk_status_html(total_chunks_display, completed_chunks, current_chunk_display, "Writing Metadata", "Writing final output metadata...", continued=continued_mode, **_timing_kwargs()), metadata_target_path if os.path.isfile(metadata_target_path) else output_path, str(time.time_ns()), start_enabled=False, abort_enabled=False)
             metadata_source_path = last_segment_path or media.get_last_generated_video_path(chunk_output_paths)
             actual_output_frames = media.probe_resume_frame_count(ffprobe_path, metadata_target_path, fps_float)[0] if os.path.isfile(metadata_target_path) else 0
-            if not write_state.stopped and actual_output_frames < total_written_unique_frames:
-                if not continued_mode or metadata_target_path != output_path:
-                    media.delete_file_if_exists(metadata_target_path, label="invalid output")
-                raise gr.Error(f"Final output contains {actual_output_frames} frame(s), but {total_written_unique_frames} frame(s) were written.")
             if actual_output_frames <= 0:
                 if metadata_target_path != output_path or not resume_existing_output:
                     media.delete_file_if_exists(metadata_target_path, label="invalid output")
                 raise gr.Error("Final output does not contain a readable video frame.")
-            if write_state.stopped and actual_output_frames < total_written_unique_frames:
-                common.plugin_info(f"Stopped output contains {actual_output_frames} readable frame(s), lower than the {total_written_unique_frames} frame(s) attempted. Recording the probed frame count.")
+            if actual_output_frames < total_written_unique_frames:
+                if write_state.stopped:
+                    common.plugin_info(f"Stopped output contains {actual_output_frames} readable frame(s), lower than the {total_written_unique_frames} frame(s) attempted. Recording the probed frame count.")
+                else:
+                    common.plugin_info(f"Final output contains {actual_output_frames} readable frame(s), lower than the {total_written_unique_frames} frame(s) written. Recording the probed frame count.")
                 total_written_unique_frames = actual_output_frames
             total_generation_time = existing_output_generation_time + process_metadata.read_metadata_generation_time(metadata_source_path) if merged_continuation else process_metadata.read_metadata_generation_time(metadata_source_path)
             output_process_metadata = {

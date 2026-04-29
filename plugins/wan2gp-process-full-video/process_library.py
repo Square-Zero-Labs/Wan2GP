@@ -228,7 +228,11 @@ class ProcessLibrary:
                 entries.append((process_name, process_name, "system"))
         for value, definition in self.user_process_definitions(user_refs).items():
             if self.process_definition_model_type(definition) == model_type:
-                label = f"{Path(str(definition.get('name') or value)).stem} *"
+                label_name = str(definition.get("name") or "").strip()
+                if len(label_name) == 0:
+                    ref = catalog.user_process_ref_from_value(value)
+                    label_name = Path(ref or value).stem
+                label = f"{label_name} *"
                 entries.append((label, value, "user"))
         entries.sort(key=lambda item: (item[0].removesuffix(" *").casefold(), 0 if item[2] == "system" else 1))
         return [(label, value) for label, value, _source in entries]
