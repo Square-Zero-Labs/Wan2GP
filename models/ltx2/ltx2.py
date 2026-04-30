@@ -37,6 +37,7 @@ from .ltx_core.text_encoders.gemma import (
 from .ltx_core.text_encoders.gemma.feature_extractor import GemmaFeaturesExtractorProjLinear
 from .ltx_core.model.video_vae import SpatialTilingConfig, TemporalTilingConfig, TilingConfig
 from .ltx_core.types import AudioLatentShape, VideoPixelShape
+from .lora_utils import is_ic_lora_filename, phase2_ic_lora_name
 from .ltx_pipelines.distilled import DistilledPipeline
 from .ltx_pipelines.ti2vid_two_stages import TI2VidTwoStagesPipeline
 from .ltx_pipelines.utils.constants import AUDIO_SAMPLE_RATE, DEFAULT_NEGATIVE_PROMPT
@@ -434,7 +435,7 @@ def _infer_ic_lora_downscale_factor(loras_selected) -> int | None:
     factors = []
     for lora_path in loras_selected or []:
         name = os.path.basename(str(lora_path)).lower()
-        if "ic-lora" not in name:
+        if not is_ic_lora_filename(name):
             continue
         match = re.search(r"-ref([0-9]+(?:\.[0-9]+)?)", name)
         if not match:
@@ -448,28 +449,6 @@ def _infer_ic_lora_downscale_factor(loras_selected) -> int | None:
     if not factors:
         return None
     return min(factors)
-
-
-def _is_nonzero_multiplier(value) -> bool:
-    if isinstance(value, (list, tuple)):
-        return any(_is_nonzero_multiplier(item) for item in value)
-    try:
-        return abs(float(value)) > 1e-8
-    except (TypeError, ValueError):
-        return False
-
-
-def _has_phase2_ic_lora(loras_selected, loras_slists) -> bool:
-    phase2 = (loras_slists or {}).get("phase2", [])
-    for index, lora_path in enumerate(loras_selected or []):
-        name = os.path.basename(str(lora_path)).lower()
-        if "ic-lora" not in name:
-            continue
-        if not loras_slists:
-            return True
-        if index < len(phase2) and _is_nonzero_multiplier(phase2[index]):
-            return True
-    return False
 
 
 def _collect_video_chunks(
@@ -1209,11 +1188,11 @@ class LTX2:
                 latent_conditioning_stage2 = latent_conditioning_stage2.to(device=self.device, dtype=self.dtype)
 
         video_conditioning_stage2 = None
-        if video_conditioning and _has_phase2_ic_lora(loras_selected, loras_slists):
-            video_conditioning_stage2 = video_conditioning
-
         negative_prompt = n_prompt if n_prompt else DEFAULT_NEGATIVE_PROMPT
         skip_stage_2 = guide_phases <= 1
+        phase2_ic_lora = phase2_ic_lora_name(loras_selected, loras_slists) if video_conditioning else None
+        if video_conditioning and phase2_ic_lora is not None:
+            video_conditioning_stage2 = video_conditioning
         if audio_cfg_scale is None:
             effective_audio_cfg_scale = LTX2_ID_LORA_AUDIO_CFG_SCALE if "1" in audio_prompt_type else float(guide_scale)
         else:

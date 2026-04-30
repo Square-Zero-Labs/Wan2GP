@@ -268,6 +268,8 @@ class TI2VidTwoStagesPipeline:
             height=height if skip_stage_2 else height // 2,
             fps=frame_rate,
         )
+        if interrupt_check is not None and interrupt_check():
+            return None, None
         video_encoder = self._get_stage_model(1, "video_encoder")
         transformer = self._get_stage_model(1, "transformer")
         bind_interrupt_check(transformer, interrupt_check)
@@ -376,6 +378,8 @@ class TI2VidTwoStagesPipeline:
                 self_refiner_handler_audio=self_refiner_handler_audio,
                 self_refiner_generator=generator,
             )
+        if interrupt_check is not None and interrupt_check():
+            return None, None
         stage_1_conditionings = image_conditionings_by_replacing_latent(
             images=images,
             height=stage_1_output_shape.height,
@@ -542,6 +546,8 @@ class TI2VidTwoStagesPipeline:
             )
 
         stage_2_output_shape = VideoPixelShape(batch=1, frames=num_frames, width=width, height=height, fps=frame_rate)
+        if interrupt_check is not None and interrupt_check():
+            return None, None
         stage_2_images = images if images_stage2 is None else images_stage2
         stage_2_conditionings = image_conditionings_by_replacing_latent(
             images=stage_2_images,

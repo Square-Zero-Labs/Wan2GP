@@ -335,10 +335,24 @@ class MagicMaskUI:
         return r"""
 .wangp-magic-mask-anchor {
     position: relative;
+    gap: 0 !important;
+    padding: 0 !important;
+    margin: 0 !important;
 }
 
 .wangp-magic-mask-anchor--image-editor {
     position: relative;
+}
+
+.wangp-magic-mask-anchor > .form,
+.wangp-magic-mask-anchor > .styler {
+    gap: 0 !important;
+    padding: 0 !important;
+    margin: 0 !important;
+}
+
+.wangp-magic-mask-anchor:not(:has(> .block:not(.hide):not(.hidden), > button:not(.hide):not(.hidden), > .gr-group:not(.hide):not(.hidden))) {
+    display: none !important;
 }
 
 .wangp-magic-mask-trigger,

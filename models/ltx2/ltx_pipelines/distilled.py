@@ -332,6 +332,8 @@ class DistilledPipeline:
         bench_transformer = _env_flag(_BENCH_TRANSFORMER_ENV, "0")
         skip_stage_2 = bool(skip_stage_2)
         stage_1_pass_no = 0 if skip_stage_2 else 1
+        if interrupt_check is not None and interrupt_check():
+            return None, None
         video_encoder = self._get_model("video_encoder")
         transformer = _TransformerBenchWrapper(self._get_model("transformer"), enabled=bench_transformer)
         bind_interrupt_check(transformer, interrupt_check)
@@ -393,6 +395,8 @@ class DistilledPipeline:
             height=height if skip_stage_2 else height // 2,
             fps=frame_rate,
         )
+        if interrupt_check is not None and interrupt_check():
+            return None, None
         stage_1_conditionings = image_conditionings_by_replacing_latent(
             images=images,
             height=stage_1_output_shape.height,
@@ -561,6 +565,8 @@ class DistilledPipeline:
             height=height,
             fps=frame_rate,
         )
+        if interrupt_check is not None and interrupt_check():
+            return None, None
         stage_2_conditionings = image_conditionings_by_replacing_latent(
             images=images_stage2 if images_stage2 is not None else images,
             height=stage_2_output_shape.height,
