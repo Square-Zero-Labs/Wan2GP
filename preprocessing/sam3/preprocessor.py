@@ -261,6 +261,7 @@ def run_sam3_video(
     use_batched_grounding: bool = True,
     trim_past_non_cond_mem_for_eval: bool = True,
     keep_video_frames_on_cuda: bool = KEEP_VIDEO_FRAMES_ON_CUDA,
+    cache_frame_outputs: bool = False,
     fill_hole_area: int = 0,
     progress_callback=None,
 ):
@@ -292,7 +293,7 @@ def run_sam3_video(
     num_frames, height, width, _ = video.shape
     video_pil = [Image.fromarray(video[i]) for i in range(num_frames)]
     session_id = None
-    response = video_predictor.handle_request({"type": "start_session", "resource_path": video_pil, "offload_video_to_cpu": not keep_video_frames_on_cuda})
+    response = video_predictor.handle_request({"type": "start_session", "resource_path": video_pil, "offload_video_to_cpu": not keep_video_frames_on_cuda, "cache_frame_outputs": cache_frame_outputs})
     session_id = response["session_id"]
     dynamic_mask = np.zeros((num_frames, height, width), dtype=np.bool_)
     try:

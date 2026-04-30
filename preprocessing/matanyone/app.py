@@ -173,11 +173,11 @@ def _sam3_load_model_to_gpu():
         sam3_predictor.load_model_to_gpu()
 
 
-def _sam3_start_session(video_state, start_frame=0, end_frame=None):
+def _sam3_start_session(video_state, start_frame=0, end_frame=None, cache_frame_outputs=True):
     predictor = _ensure_sam3_predictor()
     _sam3_load_model_to_gpu()
     frames = [Image.fromarray(frame) for frame in video_state["origin_images"][start_frame:end_frame]]
-    response = predictor.handle_request({"type": "start_session", "resource_path": frames, "offload_video_to_cpu": False})
+    response = predictor.handle_request({"type": "start_session", "resource_path": frames, "offload_video_to_cpu": False, "cache_frame_outputs": cache_frame_outputs})
     return response["session_id"]
 
 
@@ -387,7 +387,7 @@ def _sam3_propagate_keywords(video_state, keyword_prompts, start_frame, end_fram
             logger.info("SAM3 keyword currently being processed: '%s'", prompt["keyword"])
             preencoded = _sam3_bf16_prompt_payload(preencoded_prompts[prompt["keyword"]])
             _sam3_load_model_to_gpu()
-            response = _ensure_sam3_predictor().handle_request({"type": "start_session", "resource_path": video_pil, "offload_video_to_cpu": False})
+            response = _ensure_sam3_predictor().handle_request({"type": "start_session", "resource_path": video_pil, "offload_video_to_cpu": False, "cache_frame_outputs": False})
             session_id = response["session_id"]
             with _sam3_autocast_context():
                 sam3_predictor.handle_request({"type": "add_prompt", "session_id": session_id, "frame_index": local_frame_idx, "text": prompt["keyword"], "preencoded_text_outputs": preencoded})
@@ -415,7 +415,7 @@ def _sam3_propagate_prompts(video_state, prompts, start_frame, end_frame):
 
     _sam3_close_click_session()
     if point_prompts:
-        session_id = _sam3_start_session(video_state, start_frame, end_frame)
+        session_id = _sam3_start_session(video_state, start_frame, end_frame, cache_frame_outputs=False)
         try:
             from preprocessing.sam3.preprocessor import encode_sam3_keyword_prompts
 

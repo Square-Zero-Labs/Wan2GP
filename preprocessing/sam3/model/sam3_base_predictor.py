@@ -54,6 +54,7 @@ class Sam3BasePredictor:
                 session_id=request.get("session_id", None),
                 offload_video_to_cpu=request.get("offload_video_to_cpu", False),
                 offload_state_to_cpu=request.get("offload_state_to_cpu", False),
+                cache_frame_outputs=request.get("cache_frame_outputs", True),
             )
         elif request_type == "add_prompt":
             return self.add_prompt(
@@ -119,6 +120,7 @@ class Sam3BasePredictor:
         session_id=None,
         offload_video_to_cpu=False,
         offload_state_to_cpu=False,
+        cache_frame_outputs=True,
     ):
         """Start a new inference session on a video directory or path."""
         init_kwargs = dict(
@@ -135,6 +137,7 @@ class Sam3BasePredictor:
         sig = inspect.signature(self.model.init_state)
         filtered_kwargs = {k: v for k, v in init_kwargs.items() if k in sig.parameters}
         inference_state = self.model.init_state(**filtered_kwargs)
+        inference_state["cache_frame_outputs"] = bool(cache_frame_outputs)
 
         if not session_id:
             session_id = str(uuid.uuid4())

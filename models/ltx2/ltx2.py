@@ -820,8 +820,11 @@ class LTX2:
                 local_filename = fl.get_local_model_filename(file_name, lora_dir=lora_dir)
                 base_name = os.path.basename(local_filename)
                 if signature in base_name.lower():
-                    if base_name.lower() in selected_loras or any(os.path.basename(lora).lower() == base_name.lower() for lora in loras):
-                        return
+                    if any(signature in lora for lora in loras): return
+                    for lora in selected_loras:
+                        if signature in lora:
+                            print(f"Default system '{signature}' lora and corresponding multiplier will be ignored as User has provided its own lora ({lora})")
+                            return
                     loras.append(local_filename)
                     loras_mult.append(multiplier)
                     return
@@ -835,7 +838,7 @@ class LTX2:
                 mult = "0;0.8"
             else:
                 mult = "0;1"
-            _append_preload_lora("distilled-lora", mult)
+            _append_preload_lora("distilled", mult)
         if pipeline_kind == "distilled":
             if resolved_base_model_type == "ltx2_22B" and VIDEO_PROMPT_HDR_OUTPUT_FLAG in video_prompt_type:
                 _append_preload_lora("ic-lora-hdr-0.9", 1.0)

@@ -1224,6 +1224,9 @@ class Sam3MultiplexTracking(Sam3MultiplexBase):
         removed_obj_ids=None,
         unconfirmed_obj_ids=None,
     ):
+        if not inference_state.get("cache_frame_outputs", True):
+            return
+
         if "cached_frame_outputs" not in inference_state:
             inference_state["cached_frame_outputs"] = {}
 
