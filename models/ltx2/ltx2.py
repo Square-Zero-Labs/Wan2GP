@@ -841,13 +841,13 @@ class LTX2:
             _append_preload_lora("distilled", mult)
         if pipeline_kind == "distilled":
             if resolved_base_model_type == "ltx2_22B" and VIDEO_PROMPT_HDR_OUTPUT_FLAG in video_prompt_type:
-                _append_preload_lora("ic-lora-hdr-0.9", 1.0)
+                _append_preload_lora("ic-lora-hdr", 1.0)
             if any(letter in video_prompt_type for letter in control_map):
                 _append_preload_lora("union-control", 1.0)
             if resolved_base_model_type == "ltx2_22B" and get_outpainting_dims(outpainting_setting, outpainting_ratio) is not None:
                 _append_preload_lora("outpaint", 1.0)
         if "1" in audio_prompt_type:
-            id_signature = "id-lora-celebvhq-ltx2.3" if resolved_base_model_type == "ltx2_22B" else "id-lora-celebvhq-ltx2"
+            id_signature = "id-lora-celebvhq" if resolved_base_model_type == "ltx2_22B" else "id-lora-celebvhq-ltx2"
             _append_preload_lora(id_signature, 1.0 if guidance_phases == 1 else "1;0")
         return loras, loras_mult
 

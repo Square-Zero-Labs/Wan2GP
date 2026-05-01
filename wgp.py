@@ -9950,7 +9950,17 @@ def generate_video_tab(update_form = False, state_dict = None, ui_defaults = Non
                     dropdown_selectable = False
                     image_ref_inpaint = "I" in model_def.get("inpaint_video_prompt_type", "")
 
-                with gr.Row(visible = dropdown_selectable or image_ref_inpaint) as guide_selection_row:
+                guide_selection_context_visible = dropdown_selectable or image_ref_inpaint
+                guide_selector_visible = guide_preprocessing is not None and guide_preprocessing.get("visible", True)
+                guide_alt_selector_visible = guide_custom_choices is not None and guide_custom_choices.get("visible", True)
+                mask_selector_visible = mask_preprocessing is not None and "V" in video_prompt_type_value and "U" not in video_prompt_type_value and mask_preprocessing.get("visible", True)
+                image_ref_selector_visible = image_ref_inpaint or image_ref_choices is not None and image_ref_choices.get("visible", True)
+                custom_video_selection = model_def.get("custom_video_selection", None)
+                custom_video_trigger = "" if custom_video_selection is None else custom_video_selection.get("trigger", "")
+                custom_selector_visible = custom_video_selection is not None and (len(custom_video_trigger) == 0 or custom_video_trigger in video_prompt_type_value)
+                guide_selection_visible = guide_selection_context_visible and (guide_selector_visible or guide_alt_selector_visible or custom_selector_visible or mask_selector_visible or image_ref_selector_visible)
+
+                with gr.Row(visible=guide_selection_visible) as guide_selection_row:
                     # Control Video Preprocessing
                     if guide_preprocessing is None:
                         video_prompt_type_video_guide = gr.Dropdown(choices=[("","")], value="", label="Control Video", scale = 2, visible= False, show_label= True, )
@@ -9988,7 +9998,7 @@ def generate_video_tab(update_form = False, state_dict = None, ui_defaults = Non
                         video_prompt_type_video_guide = gr.Dropdown(
                             guide_preprocessing_choices,
                             value=filter_letters(video_prompt_type_value,  all_guide_processes, guide_preprocessing.get("default", "") ),
-                            label= video_prompt_type_video_guide_label , scale = 1, visible= dropdown_selectable and guide_preprocessing.get("visible", True) , show_label= True,
+                            label= video_prompt_type_video_guide_label , scale = 1, visible= dropdown_selectable and guide_selector_visible , show_label= True,
                         )
                         any_control_video = True
                         any_control_image = image_outputs 
@@ -10006,7 +10016,7 @@ def generate_video_tab(update_form = False, state_dict = None, ui_defaults = Non
                         video_prompt_type_video_guide_alt = gr.Dropdown(
                             choices= video_prompt_type_video_guide_alt_choices,
                             value=guide_custom_choices_value,
-                            visible = dropdown_selectable and guide_custom_choices.get("visible", True),
+                            visible = dropdown_selectable and guide_alt_selector_visible,
                             label= video_prompt_type_video_guide_alt_label, show_label= guide_custom_choices.get("show_label", True), scale = guide_custom_choices.get("scale", 1),
                         )
                         any_control_video = True
@@ -10014,7 +10024,6 @@ def generate_video_tab(update_form = False, state_dict = None, ui_defaults = Non
                         any_reference_image = any("I" in choice for label, choice in guide_custom_choices["choices"])
 
                     # Custom dropdown box & checkbox
-                    custom_video_selection = model_def.get("custom_video_selection", None)
                     custom_checkbox= False 
                     if custom_video_selection is None:
                         video_prompt_type_video_custom_dropbox = gr.Dropdown(choices=[("","")], value="", label="Custom Dropdown", scale = 1, visible= False, show_label= True, )
@@ -10022,8 +10031,6 @@ def generate_video_tab(update_form = False, state_dict = None, ui_defaults = Non
 
                     else:
                         custom_video_choices = custom_video_selection["choices"]
-                        custom_video_trigger = custom_video_selection.get("trigger", "")
-                        custom_choices =  len(custom_video_trigger) == 0 or custom_video_trigger in video_prompt_type_value 
                         custom_checkbox = custom_video_selection.get("type","") == "checkbox"
 
                         video_prompt_type_video_custom_label = custom_video_selection.get("label", "Custom Choices")
@@ -10031,10 +10038,10 @@ def generate_video_tab(update_form = False, state_dict = None, ui_defaults = Non
                             custom_video_choices,
                             value=filter_letters(video_prompt_type_value, custom_video_selection.get("letters_filter", ""), custom_video_selection.get("default", "")),
                             scale = custom_video_selection.get("scale", 1),
-                            label= video_prompt_type_video_custom_label , visible= dropdown_selectable and not custom_checkbox and custom_choices, 
+                            label= video_prompt_type_video_custom_label , visible= dropdown_selectable and not custom_checkbox and custom_selector_visible,
                             show_label= custom_video_selection.get("show_label", True),
                         )
-                        video_prompt_type_video_custom_checkbox = gr.Checkbox(value= custom_video_choices[1][1] in video_prompt_type_value , label=custom_video_choices[1][0] , scale = custom_video_selection.get("scale", 1), visible=dropdown_selectable and custom_checkbox and custom_choices, show_label= True, elem_classes="cbx_centered" )
+                        video_prompt_type_video_custom_checkbox = gr.Checkbox(value= custom_video_choices[1][1] in video_prompt_type_value , label=custom_video_choices[1][0] , scale = custom_video_selection.get("scale", 1), visible=dropdown_selectable and custom_checkbox and custom_selector_visible, show_label= True, elem_classes="cbx_centered" )
 
                     # Control Mask Preprocessing
                     if mask_preprocessing is None:
@@ -10066,7 +10073,7 @@ def generate_video_tab(update_form = False, state_dict = None, ui_defaults = Non
                         video_prompt_type_video_mask = gr.Dropdown(
                             mask_preprocessing_choices,
                             value=filter_letters(video_prompt_type_value, "XYZWNA", mask_preprocessing.get("default", "")),
-                            label= video_prompt_type_video_mask_label , scale = 1, visible= dropdown_selectable and "V" in video_prompt_type_value and  "U" not in video_prompt_type_value and mask_preprocessing.get("visible", True), 
+                            label= video_prompt_type_video_mask_label , scale = 1, visible= dropdown_selectable and mask_selector_visible,
                             show_label= True,
                         )
                         any_control_video = True
@@ -10089,7 +10096,7 @@ def generate_video_tab(update_form = False, state_dict = None, ui_defaults = Non
                         video_prompt_type_image_refs = gr.Dropdown(
                             choices= image_ref_choices["choices"],
                             value=filter_letters(video_prompt_type_value, image_ref_choices["letters_filter"]),
-                            visible = (dropdown_selectable or image_ref_inpaint) and image_ref_choices.get("visible", True),
+                            visible = guide_selection_context_visible and image_ref_selector_visible,
                             label=image_ref_choices.get("label", "Inject Reference Images"), show_label= image_ref_choices.get("show_label", True), scale = 1
                         )
 

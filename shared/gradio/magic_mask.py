@@ -59,25 +59,12 @@ def _open_panel():
     return gr.update(visible=True), "", "", gr.update(visible=True, interactive=True), gr.update(visible=False, interactive=False), None, None
 
 
-def _close_panel(pending_image_mask_guide, pending_image_mask):
-    if pending_image_mask_guide is not None:
-        return (
-            gr.update(visible=False),
-            "",
-            "",
-            gr.update(visible=False, interactive=False),
-            gr.update(value=pending_image_mask_guide),
-            gr.update(value=pending_image_mask),
-            None,
-            None,
-        )
+def _close_panel():
     return (
         gr.update(visible=False),
         "",
         "",
         gr.update(visible=False, interactive=False),
-        gr.update(),
-        gr.update(),
         None,
         None,
     )
@@ -1002,13 +989,12 @@ WMM.scheduleMount();
         get_model_settings: Callable[[Any], dict],
     ):
         self.trigger.click(fn=_open_panel, inputs=[], outputs=[self.panel, self.status, self.progress_html, self.cancel_btn, self.abort_btn, self.pending_image_mask_guide, self.pending_image_mask], show_progress="hidden")
-        close_event = self.cancel_btn.click(
+        self.cancel_btn.click(
             fn=_close_panel,
-            inputs=[self.pending_image_mask_guide, self.pending_image_mask],
-            outputs=[self.panel, self.status, self.progress_html, self.abort_btn, image_mask_guide, image_mask, self.pending_image_mask_guide, self.pending_image_mask],
+            inputs=[],
+            outputs=[self.panel, self.status, self.progress_html, self.abort_btn, self.pending_image_mask_guide, self.pending_image_mask],
             show_progress="hidden",
         )
-        close_event.then(fn=None, inputs=[], outputs=[], js=MagicMaskUI.focus_image_editor_javascript())
         self.abort_btn.click(fn=_abort_magic_mask, inputs=[self.abort_token], outputs=[self.status, self.abort_btn], show_progress="hidden")
 
         def generate(state_value, keywords_text, negative_mask_value, image_mode_value, video_guide_value, image_mask_guide_value, image_guide_value, abort_token_value):
