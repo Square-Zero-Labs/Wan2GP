@@ -185,6 +185,16 @@ def _generate_magic_mask(
     release_gpu: Callable[[Any, str], Any],
     get_model_settings: Callable[[Any], dict],
 ):
+    source_image = None
+    if image_mode > 0:
+        source_image = _image_source(image_mask_guide, image_guide)
+        if source_image is None:
+            yield gr.update(), gr.update(), gr.update(), _status_html("Magic Mask needs a control image.", "error"), gr.update(visible=True), "", _exit_button_idle(), _abort_button_idle(), None, None
+            return
+    elif video_guide is None:
+        yield gr.update(), gr.update(), gr.update(), _status_html("Magic Mask needs a control video.", "error"), gr.update(visible=True), "", _exit_button_idle(), _abort_button_idle(), None, None
+        return
+
     keywords = magic_mask.parse_keywords(keywords_text)
     if len(keywords) == 0:
         yield gr.update(), gr.update(), gr.update(), _status_html("Enter at least one keyword.", "error"), gr.update(visible=True), "", _exit_button_idle(), _abort_button_idle(), None, None
@@ -204,10 +214,6 @@ def _generate_magic_mask(
         ui_settings = get_model_settings(state)
         if image_mode > 0:
             _raise_if_aborted(abort_event)
-            source_image = _image_source(image_mask_guide, image_guide)
-            if source_image is None:
-                yield gr.update(), gr.update(), gr.update(), _status_html("Magic Mask needs a control image.", "error"), gr.update(visible=True), "", _exit_button_idle(), _abort_button_idle(), None, None
-                return
             background, video = magic_mask.prepare_image_mask_input(source_image)
             total = len(keywords)
             mask_generator = _run_keyword_mask(video, keywords, abort_event)
@@ -235,9 +241,6 @@ def _generate_magic_mask(
                 ui_settings["image_mask"] = mask_image
             gr.Info(f"Magic Mask generated {'a negative ' if negative_mask else 'an '}image mask for: {keywords_label}.")
             yield gr.update(value=image_mask_guide_value), gr.update(value=mask_image), gr.update(), "", gr.update(visible=False), "", _exit_button_idle(), _abort_button_idle(), None, None
-            return
-        if video_guide is None:
-            yield gr.update(), gr.update(), gr.update(), _status_html("Magic Mask needs a control video.", "error"), gr.update(visible=True), "", _exit_button_idle(), _abort_button_idle(), None, None
             return
         _raise_if_aborted(abort_event)
         video_path, video, fps = magic_mask.prepare_video_mask_input(video_guide)
@@ -396,6 +399,17 @@ class MagicMaskUI:
     background: var(--background-fill-secondary) !important;
     color: var(--color-accent) !important;
     transform: none !important;
+}
+
+.wangp-magic-mask-toolbar-button.wangp-magic-mask-unavailable {
+    cursor: not-allowed !important;
+    opacity: 0.52;
+    filter: grayscale(1);
+}
+
+.wangp-magic-mask-toolbar-button.wangp-magic-mask-unavailable:hover {
+    cursor: not-allowed !important;
+    color: var(--body-text-color-subdued) !important;
 }
 
 .wangp-magic-mask-toolbar-button[hidden] {
@@ -896,8 +910,8 @@ WMM.findImageEditorForTrigger = function (trigger) {
 WMM.mountImageEditorTriggers = function () {
     WMM.installOverlayTriggerPatch();
     document.querySelectorAll('.wangp-magic-mask-trigger--editor').forEach((trigger) => {
-        if (trigger.classList.contains('hidden') || !!trigger.closest('.hidden')) return;
         const anchor = trigger.closest('.wangp-magic-mask-anchor--image-editor') || trigger.parentElement || document.body;
+        if (trigger.classList.contains('hidden') || !!trigger.closest('.hidden') || !!trigger.closest('.hide') || !WMM.isVisible(anchor)) return;
         const editor = WMM.findImageEditorForTrigger(trigger);
         if (!editor || !trigger) return;
         const toolbar = WMM.findImageEditorToolbar(editor);
@@ -920,9 +934,13 @@ WMM.mountImageEditorTriggers = function () {
         toolbar.classList.add('wangp-magic-mask-toolbar');
         toolbarButton.hidden = trigger.classList.contains('hidden') || !!trigger.closest('.hidden');
         toolbarButton.disabled = trigger.disabled;
+        const needsImage = /Upload an image/i.test(editor.innerText || '') && /select the draw tool to start/i.test(editor.innerText || '');
+        toolbarButton.classList.toggle('wangp-magic-mask-unavailable', needsImage);
+        toolbarButton.title = needsImage ? 'Magic Mask needs a control image' : 'Magic Mask';
         toolbarButton.onclick = (event) => {
             event.preventDefault();
             event.stopPropagation();
+            if (needsImage) return;
             trigger.click();
         };
     });

@@ -10172,7 +10172,9 @@ def generate_video_tab(update_form = False, state_dict = None, ui_defaults = Non
                         magic_mask_uis.append(magic_mask_ui)
                         magic_mask_video_btn = magic_mask_ui.trigger
                     else:
-                        magic_mask_video_btn = MagicMaskUI.hidden_trigger()
+                        magic_mask_ui = MagicMaskUI().render(visible=False)
+                        magic_mask_uis.append(magic_mask_ui)
+                        magic_mask_video_btn = magic_mask_ui.trigger
                 mask_strength_always_enabled = model_def.get("mask_strength_always_enabled", False)  
                 masking_strength = setting_slider("masking_strength", visible=(mask_strength_always_enabled or "G" in video_prompt_type_value) and "V" in video_prompt_type_value and "A" in video_prompt_type_value and not "U" in video_prompt_type_value)
                 mask_expand = setting_slider("mask_expand", visible="V" in video_prompt_type_value and "A" in video_prompt_type_value and not "U" in video_prompt_type_value)
