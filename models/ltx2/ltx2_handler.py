@@ -222,7 +222,7 @@ class family_handler:
         pipeline_kind = model_def.get("ltx2_pipeline", "two_stage")
 
         distilled = pipeline_kind == "distilled"
-        audio_prompt_selection = ["", "A", "K"] if distilled else ["", "A", "A1OF"]
+        audio_prompt_selection = ["", "A", "K", "2"] if distilled else ["", "A", "A1OF"]
         audio_prompt_labels = {
             "": "Generate Video & Soundtrack based on Text Prompt",
             "A": "Generate Video based on Soundtrack and Text Prompt",
@@ -230,6 +230,7 @@ class family_handler:
         }
         if distilled:
             audio_prompt_labels["K"] = "Generate Video based on Control Video + its Audio Track and Text Prompt"
+            audio_prompt_labels["2"] = "Generate Audio based on Control Video and Text Prompt"
 
 
         extra_model_def = {
@@ -256,8 +257,9 @@ class family_handler:
                 "labels": audio_prompt_labels,
                 "custom_flags": {
                     "1": "Reference Voice (ID-LoRA)",
+                    "2": "Generate Audio based on Control Video and Text Prompt",
                 },
-                "letters_filter": "A1OFK",
+                "letters_filter": "A1OFK2",
                 "show_label": False,
             },
             "auto_null_audio": True,
@@ -467,10 +469,21 @@ class family_handler:
                 return f"Sampler '{sample_solver}' is not supported for {base_model_type}."
         video_guide_outpainting = inputs.get("video_guide_outpainting", None) 
         video_guide_outpainting_ratio = inputs.get("video_guide_outpainting_ratio", "") 
-        video_prompt_type = inputs.get("video_prompt_type", "")
-        audio_prompt_type = inputs.get("audio_prompt_type", "")
+        video_prompt_type = inputs.get("video_prompt_type", "") or ""
+        audio_prompt_type = inputs.get("audio_prompt_type", "") or ""
         from shared.utils.utils import get_outpainting_dims 
         any_outpainting = get_outpainting_dims(video_guide_outpainting, video_guide_outpainting_ratio) is not None        
+        if "2" in audio_prompt_type:
+            if pipeline_kind != "distilled":
+                return "LTX2 audio generation from Control Video is supported only with distilled models."
+            if any(letter in audio_prompt_type for letter in "AK"):
+                return "LTX2 audio generation from Control Video must use the dedicated audio option, without an Audio Source or Control Video Audio Track prompt."
+            if "V" not in video_prompt_type or "G" not in video_prompt_type:
+                return "LTX2 audio generation from Control Video requires 'LTX2 Raw Format / Control Video for Ic Lora'."
+            if any(letter in video_prompt_type for letter in "OPDE&AFKI") or any_outpainting:
+                return "LTX2 audio generation from Control Video supports only raw Control Video, without Pose/Depth/Canny/HDR/Outpaint/Mask/Inject Frames."
+            if inputs.get("video_guide") is None:
+                return "You must provide a Control Video to generate audio from it."
         if "&" in video_prompt_type:
             if pipeline_kind != "distilled" or base_model_type != "ltx2_22B":
                 return "LTX2 HDR IC-LoRA is supported only with LTX-2.3 22B distilled."
@@ -493,9 +506,10 @@ class family_handler:
         if guide_phases !=1 and "V" in video_prompt_type and any_outpainting:
             inputs["guidance_phases"]=  1            
             gr.Info("Number of Phases has been set to 1 as Outpainting is enabled")
-        error = _notify_control_video_phase2(base_model_type, model_def, inputs, any_outpainting)
-        if error:
-            return error
+        if "2" not in audio_prompt_type:
+            error = _notify_control_video_phase2(base_model_type, model_def, inputs, any_outpainting)
+            if error:
+                return error
         if "A" in audio_prompt_type and inputs.get("audio_guide") is None:
             audio_source = inputs.get("audio_source")
             if audio_source is not None:

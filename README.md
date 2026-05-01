@@ -33,7 +33,7 @@ WanGP supports the Wan (and derived models) but also Hunyuan Video, Flux, Qwen, 
 
 
 ## 🔥 Latest Updates : 
-### 28th of April 2026: WanGP v11.50, a Kind of Magic
+### 2nd of May 2026: WanGP v11.52, a Kind of Magic
 
 - **Vista 4D**: Vista4D allows a *Video Reshooting* of a *Dynamic scene* from novel camera trajectories and viewpoints. In other words this Wan 2.1 model will let you relive from a different (moving) perspective a scene with moving people or objects. The sequences are quite short (usually 49 frames, max around 97 frames) but it is a lot of fun as for once this really works. 
 
@@ -44,6 +44,11 @@ It is highly recommended to apply the *Lightx2v 4 steps* lora profile. Also for 
 - **Magic Mask**: generating a *Video Mask* or *Image Mask* has never been easier and faster. No need to get into the *Video Mask Generator* tab, just click the *Magic Wand* next to *Mask field* and enter a few keywords like *blue car* or *lady to the right* and a high quality mask powered by *SAM3* will be generated automatically. You will appreciate the very good *Temporal Consistency* brought by SAM3.
 
 - **Video Mask Generator with SAM3 support**: if you still need to generate complex masks you can combine the good old point and click masks with the SAM3 / Magic Mask masks. You need to enable this feature in the *Config / Extensions* tab.
+
+- **LTX-2 Video to Audio**: it was more or less already possible but this new Control Video Process will be much faster and the output video will be unaltered
+
+*update 11.51*: various fixes\
+*update 11.52*: LTX-Video to Audio, fixed bugs in audio continuation with sliding windows 
 
 ### 25th of April 2026: WanGP v11.41, LTX-2 Mega Mix Part 2
 More nice goodies for **LTX-2**:

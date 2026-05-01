@@ -124,7 +124,7 @@ AUTOSAVE_TEMPLATE_PATH = AUTOSAVE_FILENAME
 CONFIG_FILENAME = "wgp_config.json"
 PROMPT_VARS_MAX = 10
 target_mmgp_version = "3.7.6"
-WanGP_version = "11.51"
+WanGP_version = "11.52"
 settings_version = 2.58
 max_source_video_frames = 3000
 prompt_enhancer_image_caption_model, prompt_enhancer_image_caption_processor, prompt_enhancer_llm_model, prompt_enhancer_llm_tokenizer = None, None, None, None
@@ -6006,7 +6006,7 @@ def generate_video(
             video_source = max(mp4_files, key=os.path.getmtime) if mp4_files else None                            
     fps = 1 if is_image else get_computed_fps(force_fps, base_model_type , video_guide, video_source )
     control_audio_tracks = source_audio_tracks = source_audio_metadata = []
-    if any_letters(audio_prompt_type, "R") and video_guide is not None and MMAudio_setting == 0 and not any_letters(audio_prompt_type, "ABXK"):
+    if any_letters(audio_prompt_type, "R") and video_guide is not None and MMAudio_setting == 0 and audio_source is None:
         control_audio_tracks, _  = extract_audio_tracks(video_guide, temp_format="wav")
     if "K" in audio_prompt_type and video_guide is not None:
         try:
@@ -6314,6 +6314,7 @@ def generate_video(
             aligned_guide_start_frame = guide_start_frame - alignment_shift
             aligned_guide_end_frame = guide_end_frame - alignment_shift
             aligned_window_start_frame = window_start_frame - alignment_shift  
+            input_waveform, input_waveform_sample_rate = None, 0
             if full_audio_guide_waveform is not None:
                 input_waveform, input_waveform_sample_rate = full_audio_guide_waveform, full_audio_guide_sample_rate
             elif audio_guide is not None and model_def.get("audio_guide_window_slicing", False):
@@ -6322,6 +6323,13 @@ def generate_video(
                     audio_start_frame += source_video_overlap_frames_count
                 input_waveform, input_waveform_sample_rate = slice_audio_window(audio_guide, audio_start_frame, current_video_length, fps, save_path, suffix=f"_win{window_no}", pad_tail=not video_length_not_limited_by_audio) 
                 if input_waveform.shape[0] == 0: input_waveform, input_waveform_sample_rate = pre_audio_guide, pre_audio_guide_sample_rate
+            elif model_def.get("audio_guide_window_slicing", False):
+                if pre_audio_guide is not None and pre_audio_guide.shape[0] > 0:
+                    input_waveform, input_waveform_sample_rate = pre_audio_guide, pre_audio_guide_sample_rate
+                elif window_no == 1 and source_video_overlap_frames_count > 0 and len(source_audio_tracks) > 0:
+                    source_audio_start_frame = max(0, source_video_frames_count - source_video_overlap_frames_count)
+                    input_waveform, input_waveform_sample_rate = slice_audio_window(source_audio_tracks[0], source_audio_start_frame, source_video_overlap_frames_count, fps, save_path, suffix=f"_source_overlap_win{window_no}", pad_head=False, pad_tail=False)
+                    if input_waveform.shape[0] == 0: input_waveform, input_waveform_sample_rate = None, 0
             if fantasy and audio_guide is not None:
                 audio_proj_split , audio_context_lens = parse_audio(audio_guide, start_frame = aligned_window_start_frame, num_frames= current_video_length, fps= fps,  device= processing_device  )
             if multitalk:
@@ -6949,7 +6957,7 @@ def generate_video(
                     else:
                         save_video( tensor=output_video_frames, save_file=save_path_tmp, fps=output_fps, nrow=1, normalize=True, value_range=(-1, 1), codec_type = server_config.get("video_output_codec", None), container=container)
                     output_new_audio_temp_filepath = None
-                    new_audio_added_from_audio_start =  reset_control_aligment or full_generated_audio is not None # if not beginning of audio will be skipped
+                    new_audio_added_from_audio_start = reset_control_aligment or (full_generated_audio is not None and len(control_audio_tracks) == 0) # if not beginning of audio will be skipped
                     source_audio_duration = 0 if video_source is None else source_video_frames_count / fps
                     if any_mmaudio:
                         send_cmd("progress", [0, get_latest_status(state,"MMAudio Soundtrack Generation")])
@@ -6960,7 +6968,7 @@ def generate_video(
                     elif audio_source is not None:
                         output_new_audio_filepath = audio_source
                         new_audio_added_from_audio_start =  True
-                    elif output_new_audio_data is not None:
+                    elif output_new_audio_data is not None and len(control_audio_tracks) == 0:
                         output_new_audio_filepath = output_new_audio_temp_filepath = get_available_filename(save_path, f"tmp{time_flag}.wav" )
                         write_wav_file(output_new_audio_filepath, output_new_audio_data, output_audio_sampling_rate)
                     if output_new_audio_filepath is not None:

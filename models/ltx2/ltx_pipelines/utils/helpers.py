@@ -236,6 +236,28 @@ def video_conditionings_by_reference_latent(
     return conditionings
 
 
+def video_conditionings_by_frozen_video(
+    video: torch.Tensor,
+    height: int,
+    width: int,
+    num_frames: int,
+    video_encoder: VideoEncoder,
+    dtype: torch.dtype,
+    device: torch.device,
+    tiling_config: TilingConfig | None = None,
+) -> list[ConditioningItem]:
+    video = load_video_conditioning(
+        video_path=video,
+        height=height,
+        width=width,
+        frame_cap=num_frames,
+        dtype=dtype,
+        device=device,
+    )
+    encoded_video = vae_encode_video(video, video_encoder, tiling_config)
+    return latent_conditionings_by_latent_sequence(encoded_video, strength=1.0, start_index=0)
+
+
 def video_conditionings_by_control_video(
     video_conditioning: list[tuple],
     height: int,
@@ -950,6 +972,14 @@ def _cross_attn_perturbations(batch_size: int) -> BatchedPerturbationConfig:
     return BatchedPerturbationConfig(perts)
 
 
+def _skip_audio_to_video_perturbations(batch_size: int) -> BatchedPerturbationConfig:
+    perts = [
+        PerturbationConfig([Perturbation(PerturbationType.SKIP_A2V_CROSS_ATTN, None)])
+        for _ in range(batch_size)
+    ]
+    return BatchedPerturbationConfig(perts)
+
+
 PERTURBATION_perturbation = 1
 PERTURBATION_SKIP_SELF_ATTENTION = 2
 
@@ -1155,6 +1185,7 @@ def simple_denoising_func(
     audio_guidance_scale: float = 1.0,
     audio_identity_guidance_scale: float = 0.0,
     manage_lora_step: bool = True,
+    skip_audio_to_video: bool = False,
 ) -> DenoisingFunc:
     prepared_video_context = prepared_audio_context = None
     prepared_audio_context_n = prepared_audio_context_id = None
@@ -1212,16 +1243,17 @@ def simple_denoising_func(
             prepared_audio_context_id = _prepare_conditioning_context(
                 transformer, id_audio_state, audio_context, sigmas, is_audio=True
             )
+        batch_size = _get_batch_size(video_state, audio_state)
+        a2v_perturbations = _skip_audio_to_video_perturbations(batch_size) if skip_audio_to_video else None
         if not use_alt and not use_audio_cfg and not use_id:
-            denoised_video, denoised_audio = transformer(video=pos_video, audio=pos_audio, perturbations=None)
+            denoised_video, denoised_audio = transformer(video=pos_video, audio=pos_audio, perturbations=a2v_perturbations)
             if denoised_video is None and denoised_audio is None:
                 return None, None
             return denoised_video, denoised_audio
 
-        batch_size = _get_batch_size(video_state, audio_state)
         video_list = [pos_video]
         audio_list = [pos_audio]
-        perturbations = [None]
+        perturbations = [a2v_perturbations]
         neg_index = None
         alt_index = None
         id_index = None
@@ -1237,7 +1269,7 @@ def simple_denoising_func(
                     audio_state, prepared_audio_context_n, sigma, nag=audio_nag, step_index=step_index, sigma_schedule=sigmas
                 )
             )
-            perturbations.append(None)
+            perturbations.append(a2v_perturbations)
         if use_alt:
             alt_index = len(video_list)
             video_list.append(
@@ -1263,7 +1295,7 @@ def simple_denoising_func(
                     id_audio_state, prepared_audio_context_id, sigma, nag=audio_nag, step_index=step_index, sigma_schedule=sigmas
                 )
             )
-            perturbations.append(None)
+            perturbations.append(a2v_perturbations)
 
         denoised_video_list, denoised_audio_list = transformer(
             video=video_list,

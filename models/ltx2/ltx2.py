@@ -504,6 +504,38 @@ def _collect_video_chunks(
     # return frames.permute(3, 0, 1, 2).contiguous()
 
 
+def _build_frozen_control_video(
+    input_frames: torch.Tensor | None,
+    input_video: torch.Tensor | None,
+    frame_num: int,
+    prefix_frames_count: int,
+    latent_stride: int = 8,
+) -> torch.Tensor:
+    if input_frames is None:
+        raise ValueError("LTX2 audio-from-control-video mode requires a raw Control Video.")
+    requested_frames = int(frame_num)
+    prefix_frames = 0
+    if input_video is not None and prefix_frames_count > 0:
+        prefix_frames = min(int(prefix_frames_count), int(input_video.shape[1]))
+    target_frames = min(requested_frames, prefix_frames + int(input_frames.shape[1]))
+    target_frames = ((target_frames - 1) // int(latent_stride)) * int(latent_stride) + 1
+    pieces = []
+    remaining_frames = target_frames
+    if prefix_frames > 0:
+        prefix = input_video[:, : min(prefix_frames, target_frames)]
+        pieces.append(prefix)
+        remaining_frames -= int(prefix.shape[1])
+    if remaining_frames > 0:
+        tail = input_frames
+        if tail.shape[1] > remaining_frames:
+            tail = tail[:, -remaining_frames:] if pieces else tail[:, :remaining_frames]
+        pieces.append(tail)
+    if not pieces:
+        raise ValueError("LTX2 audio-from-control-video mode received no Control Video frames.")
+    frozen_video = torch.cat(pieces, dim=1) if len(pieces) > 1 else pieces[0]
+    return frozen_video[:, :target_frames]
+
+
 def _normalize_outpainting_dims(outpainting_dims) -> list[float] | None:
     if outpainting_dims is None:
         return None
@@ -923,6 +955,7 @@ class LTX2:
             input_waveform = None
         if distill:
             audio_prompt_type = audio_prompt_type.replace("1", "")
+        audio_from_control_video = distill and "2" in audio_prompt_type
         image_start = _coerce_image_list(image_start)
         image_end = _coerce_image_list(image_end)
         if frames_to_inject is None:
@@ -986,55 +1019,60 @@ class LTX2:
         is_start_image_only = image_start is not None and (not has_prefix_frames or prefix_frames_count <= 1)
         merge_conditioning_and_guide = continuous_conditioning_and_guide = False
         video_conditioning = None
+        frozen_control_video = None
         masking_source = None
         if input_frames is not None or input_frames2 is not None:
-            # continuous_conditioning_and_guide = has_prefix_frames and (ic_lora_downscale_factor or 1) == 1  and not is_start_image_only 
-            # merge_conditioning_and_guide = has_prefix_frames and any_outpainting 
-            continuous_conditioning_and_guide = has_prefix_frames and any_outpainting
-            skip_first_guide_latent = has_prefix_frames and (not is_start_image_only) and not (merge_conditioning_and_guide or continuous_conditioning_and_guide)
-            if requested_outpaint_gamma_roundtrip:
-                control_tensor = input_frames if input_frames is not None else input_frames2
-                control_rect = None if control_tensor is None else _get_outpainting_inner_rect(control_tensor.shape[-2], control_tensor.shape[-1], outpainting_dims)
-                if control_rect is not None and _apply_gamma_to_video_rect(control_tensor, control_rect, LTX2_OUTPAINT_GAMMA):
-                    print("[WAN2GP][LTX2] Applying preserved-area gamma preprocessing for outpainting IC-LoRA control video.")
-                    use_outpaint_gamma_roundtrip = True
+            if audio_from_control_video:
+                frozen_control_video = _build_frozen_control_video(input_frames, input_video, frame_num, prefix_frames_count, latent_stride)
+                frame_num = int(frozen_control_video.shape[1])
+            else:
+                # continuous_conditioning_and_guide = has_prefix_frames and (ic_lora_downscale_factor or 1) == 1 and not is_start_image_only
+                # merge_conditioning_and_guide = has_prefix_frames and any_outpainting
+                continuous_conditioning_and_guide = has_prefix_frames and any_outpainting
+                skip_first_guide_latent = has_prefix_frames and (not is_start_image_only) and not (merge_conditioning_and_guide or continuous_conditioning_and_guide)
+                if requested_outpaint_gamma_roundtrip:
+                    control_tensor = input_frames if input_frames is not None else input_frames2
+                    control_rect = None if control_tensor is None else _get_outpainting_inner_rect(control_tensor.shape[-2], control_tensor.shape[-1], outpainting_dims)
+                    if control_rect is not None and _apply_gamma_to_video_rect(control_tensor, control_rect, LTX2_OUTPAINT_GAMMA):
+                        print("[WAN2GP][LTX2] Applying preserved-area gamma preprocessing for outpainting IC-LoRA control video.")
+                        use_outpaint_gamma_roundtrip = True
 
-            control_start_frame = prefix_frames_count
-            if merge_conditioning_and_guide or continuous_conditioning_and_guide:
-                if prefix_frames_count == 1:
-                    input_frames[:, 0] = input_video[:, 0]
-                else:
-                    input_frames = torch.concat( [input_video[:, :prefix_frames_count],  input_frames[:, 1:]], dim=1)
-                if continuous_conditioning_and_guide:
+                control_start_frame = prefix_frames_count
+                if merge_conditioning_and_guide or continuous_conditioning_and_guide:
+                    if prefix_frames_count == 1:
+                        input_frames[:, 0] = input_video[:, 0]
+                    else:
+                        input_frames = torch.concat( [input_video[:, :prefix_frames_count],  input_frames[:, 1:]], dim=1)
+                    if continuous_conditioning_and_guide:
+                        control_start_frame = -prefix_frames_count
+                    else:
+                        prefix_frames_count = 0
+                        control_start_frame =  0
+                    input_video = None
+                elif skip_first_guide_latent:
                     control_start_frame = -prefix_frames_count
-                else:
-                    prefix_frames_count = 0
-                    control_start_frame =  0
-                input_video = None
-            elif skip_first_guide_latent:
-                control_start_frame = -prefix_frames_count
 
 
-            conditioning_entries = []
-            if input_frames is not None:
-                conditioning_entries.append((input_frames, control_start_frame, control_strength))
-            if input_frames2 is not None:
-                conditioning_entries.append((input_frames2, control_start_frame, control_strength))
-            if conditioning_entries:
-                video_conditioning = conditioning_entries
-            if masking_strength > 0.0:
-                if input_masks is not None and input_frames is not None:
-                    masking_source = {
-                        "video": input_frames,
-                        "mask": input_masks,
-                        "start_frame": control_start_frame,
-                    }
-                elif input_masks2 is not None and input_frames2 is not None:
-                    masking_source = {
-                        "video": input_frames2,
-                        "mask": input_masks2,
-                        "start_frame": control_start_frame,
-                    }
+                conditioning_entries = []
+                if input_frames is not None:
+                    conditioning_entries.append((input_frames, control_start_frame, control_strength))
+                if input_frames2 is not None:
+                    conditioning_entries.append((input_frames2, control_start_frame, control_strength))
+                if conditioning_entries:
+                    video_conditioning = conditioning_entries
+                if masking_strength > 0.0:
+                    if input_masks is not None and input_frames is not None:
+                        masking_source = {
+                            "video": input_frames,
+                            "mask": input_masks,
+                            "start_frame": control_start_frame,
+                        }
+                    elif input_masks2 is not None and input_frames2 is not None:
+                        masking_source = {
+                            "video": input_frames2,
+                            "mask": input_masks2,
+                            "start_frame": control_start_frame,
+                        }
 
         latent_conditioning_stage2 = None
 
@@ -1300,6 +1338,8 @@ class LTX2:
                 skip_audio=hdr_enabled,
                 continuous_conditioning_and_guide=continuous_conditioning_and_guide,
                 skip_stage_2=skip_stage_2,
+                frozen_video_conditioning=frozen_control_video,
+                frozen_output_video=frozen_control_video,
                 self_refiner_setting=self_refiner_setting,
                 self_refiner_plan=self_refiner_plan,
                 self_refiner_f_uncertainty=self_refiner_f_uncertainty,
