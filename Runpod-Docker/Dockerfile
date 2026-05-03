@@ -6,8 +6,8 @@ ENV DEBIAN_FRONTEND=noninteractive
 ENV PYTHONUNBUFFERED=1
 ENV PIP_NO_CACHE_DIR=1
 ENV SHELL=/bin/bash
-ENV BTBN_FFMPEG_TAG=autobuild-2026-04-16-13-18
-ENV BTBN_FFMPEG_ASSET=ffmpeg-n7.1.3-45-g2d6ee37238-linux64-gpl-7.1.tar.xz
+ENV BTBN_FFMPEG_TAG=latest
+ENV BTBN_FFMPEG_ASSET=ffmpeg-n7.1-latest-linux64-gpl-7.1.tar.xz
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 
 # Install system dependencies 
@@ -25,9 +25,9 @@ RUN rm -f /etc/apt/sources.list.d/cuda*.list && \
     && rm -rf /var/lib/apt/lists/*
 
 # Ubuntu 22.04 only ships FFmpeg 4.4.x, which is too old for Wan2GP's current
-# decode path. Install a pinned BtbN Linux x86_64 GPL build from the 7.1 branch:
+# decode path. Install BtbN's Linux x86_64 GPL build from the 7.1 branch:
 # - release-branch build, not master
-# - exact asset pinned by tag + filename
+# - stable latest tag + 7.1 asset name avoids BtbN daily autobuild retention expiry
 # - checksum verified at build time against the release's checksums.sha256 file
 # BtbN targets glibc >= 2.28, which is compatible with Ubuntu 22.04.
 RUN cd /tmp && \
