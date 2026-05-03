@@ -6,8 +6,8 @@ ENV DEBIAN_FRONTEND=noninteractive
 ENV PYTHONUNBUFFERED=1
 ENV PIP_NO_CACHE_DIR=1
 ENV SHELL=/bin/bash
-ENV BTBN_FFMPEG_TAG=autobuild-2026-04-16-13-18
-ENV BTBN_FFMPEG_ASSET=ffmpeg-n7.1.3-45-g2d6ee37238-linux64-gpl-7.1.tar.xz
+ENV BTBN_FFMPEG_TAG=latest
+ENV BTBN_FFMPEG_ASSET=ffmpeg-n7.1-latest-linux64-gpl-7.1.tar.xz
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 
 # Install system dependencies 
@@ -25,9 +25,9 @@ RUN rm -f /etc/apt/sources.list.d/cuda*.list && \
     && rm -rf /var/lib/apt/lists/*
 
 # Ubuntu 22.04 only ships FFmpeg 4.4.x, which is too old for Wan2GP's current
-# decode path. Install a pinned BtbN Linux x86_64 GPL build from the 7.1 branch:
+# decode path. Install BtbN's Linux x86_64 GPL build from the 7.1 branch:
 # - release-branch build, not master
-# - exact asset pinned by tag + filename
+# - stable latest tag + 7.1 asset name avoids BtbN daily autobuild retention expiry
 # - checksum verified at build time against the release's checksums.sha256 file
 # BtbN targets glibc >= 2.28, which is compatible with Ubuntu 22.04.
 RUN cd /tmp && \
@@ -46,7 +46,7 @@ RUN cd /tmp && \
 # Clone the application source code to a "safe" location that won't be volume-mounted.
 RUN git clone https://github.com/deepbeepmeep/Wan2GP.git /opt/wan2gp_source \
     && cd /opt/wan2gp_source \
-    && git checkout 1e530ce28ade013d2cffcf9c99b2c6317e10c15e
+    && git checkout 0c0a0a711c72ecadaa7f74cc062dbf103fbeb672
 # Add custom finetunes after cloning upstream.
 COPY finetunes/ltx2_distilled_old_vae.json /opt/wan2gp_source/finetunes/ltx2_distilled_old_vae.json
 # Install Python dependencies from the source code.
