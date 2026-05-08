@@ -1,6 +1,6 @@
 # Wan2GP - AI Image and Video Generation Template
 
-#### Last Updated on 5/2/2026 to WanGP v11.52, a Kind of Magic
+#### Last Updated on 5/8/2026 to WanGP 11.52: LTX-Video to Audio, fixed bugs in audio continuation with sliding windows
 
 ### _This template has been tested with an A40_
 
