@@ -97,7 +97,12 @@ sed -i \
     -e 's/^torchvision>=/#torchvision>=/' \
     requirements.txt
 python3 -m pip install --no-cache-dir -r requirements.txt
-python3 -m pip install --no-cache-dir gradio==5.35.0 sageattention==1.0.6
+python3 -m pip install --no-cache-dir gradio==5.35.0
+if [ -n "${SAGEATTENTION_WHEEL_URL:-}" ]; then
+    python3 -m pip install --no-cache-dir "$SAGEATTENTION_WHEEL_URL"
+else
+    echo "SAGEATTENTION_WHEEL_URL not set; keeping existing SageAttention install."
+fi
 echo "Dependencies updated."
 
 # Step 6: Restart the Wan2GP application with the new code.
