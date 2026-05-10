@@ -197,7 +197,7 @@ curl -s http://localhost:8888 | head
 - **build-essential**: For compiling native extensions
 - All Python dependencies from requirements.txt
 - **Gradio**: 5.35.0 (upgraded from requirements.txt version)
-- **SageAttention**: 1.0.6
+- **SageAttention**: 2.x installed from prebuilt wheel for A40 and RTX 5090 support
 
 ### Working Directory Structure
 
@@ -248,6 +248,22 @@ The `Dockerfile` includes:
 - System dependencies installation
 - Repository cloning at specific commit (`597d26b7e0e53550f57a9973c5d6a1937b2e1a7b`)
 - Python package installation with torch/torchvision skip
+- Triton verification from the RunPod PyTorch base image
+- SageAttention 2.x installs from the pinned Wan2GP-Runpod-Wheels GitHub Release URL in the Dockerfile
+
+Pinned wheel release:
+
+```text
+https://github.com/Square-Zero-Labs/Wan2GP-Runpod-Wheels/releases/tag/runpod-pytorch2.8.0-cu128-py311-sm86-sm120-v1
+```
+
+Dockerfile wheel URL:
+
+```text
+https://github.com/Square-Zero-Labs/Wan2GP-Runpod-Wheels/releases/download/runpod-pytorch2.8.0-cu128-py311-sm86-sm120-v1/sageattention-2.2.0-cp311-cp311-linux_x86_64.whl
+```
+
+Sparge Attention is intentionally not installed in this image. FlashVSR should use Triton Sparse Attention.
 - Startup script setup and permissions
 - Port exposure
 
