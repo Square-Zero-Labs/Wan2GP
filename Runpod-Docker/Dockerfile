@@ -8,6 +8,7 @@ ENV PIP_NO_CACHE_DIR=1
 ENV SHELL=/bin/bash
 ENV BTBN_FFMPEG_TAG=latest
 ENV BTBN_FFMPEG_ASSET=ffmpeg-n7.1-latest-linux64-gpl-7.1.tar.xz
+ENV SAGEATTENTION_WHEEL_URL=https://github.com/Square-Zero-Labs/Wan2GP-Runpod-Wheels/releases/download/runpod-pytorch2.8.0-cu128-py311-sm86-sm120-v1/sageattention-2.2.0-cp311-cp311-linux_x86_64.whl
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 
 # Install system dependencies 
@@ -46,11 +47,13 @@ RUN cd /tmp && \
 # Clone the application source code to a "safe" location that won't be volume-mounted.
 RUN git clone https://github.com/deepbeepmeep/Wan2GP.git /opt/wan2gp_source \
     && cd /opt/wan2gp_source \
-    && git checkout 59c65ecbb6fdb90056f0b50b5903ae41dd3a993f
+    && git checkout 8387f64fe829fb0accf9d13fac65d34a25f5fc1f
 # Add custom finetunes after cloning upstream.
 COPY finetunes/ltx2_distilled_old_vae.json /opt/wan2gp_source/finetunes/ltx2_distilled_old_vae.json
 # Install Python dependencies from the source code.
 # Normalize ORT to a CUDA 12 compatible build (RunPod base image is CUDA 12.8.1).
+# The RunPod PyTorch base image should already include Triton via its torch install;
+# the import check below fails the build early if the base image changes.
 # The GitHub Actions workflow is configured to maximize build space, so we can
 # now use a single, clean RUN command for better maintainability.
 RUN sed -i \
@@ -60,7 +63,11 @@ RUN sed -i \
     -e 's/^torchvision>=/#torchvision>=/' \
     /opt/wan2gp_source/requirements.txt \
     && python3 -m pip install --no-cache-dir -r /opt/wan2gp_source/requirements.txt \
-    && python3 -m pip install --no-cache-dir gradio==5.35.0 sageattention==1.0.6 \
+    && python3 -m pip install --no-cache-dir gradio==5.35.0 \
+    && python3 -c "import torch, triton; print(f'PyTorch {torch.__version__}; Triton {triton.__version__}')" \
+    && : "${SAGEATTENTION_WHEEL_URL:?Set SAGEATTENTION_WHEEL_URL to the SageAttention wheel URL}" \
+    && python3 -m pip install --no-cache-dir "${SAGEATTENTION_WHEEL_URL}" \
+    && python3 -c 'from importlib.metadata import version; import sageattention; assert version("sageattention").startswith("2"), version("sageattention"); print("Sage Attention " + version("sageattention") + " installed")' \
     && rm -rf /root/.cache/pip
 
 # Copy and set up our startup and update scripts
