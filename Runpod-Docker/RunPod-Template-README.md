@@ -1,10 +1,10 @@
 # Wan2GP - AI Image and Video Generation Template
 
-#### Last Updated on 5/8/2026 to WanGP 11.52: LTX-Video to Audio, fixed bugs in audio continuation with sliding windows
+#### Last Updated on 5/10/2026 to install Sage Attention 2 and update WanGP to v11.61, The Last Mile
 
 ### _This template has been tested with an A40_
 
-- To run on RTX 5090, you must deactivate SageAttention. See instructions below.
+- RTX 5090 is supported by the prebuilt SageAttention 2.x wheel.
 
 ## What is Wan2GP?
 
@@ -16,7 +16,7 @@ This template is an extenstion of the official Runpod Pytorch 2.8.0 template. It
 
 - ✅ **Wan2GP Application** - Ready to use on port 7862 (password protected)
 - ✅ **Jupyter Lab** - Development environment on port 8888
-- ✅ **All Dependencies** - PyTorch, FFmpeg, and required python libraries pre-installed
+- ✅ **All Dependencies** - PyTorch, Triton, FFmpeg, Sage Attention, and required python libraries pre-installed
 - ✅ **Storage** - Your models and outputs saved to `/workspace`
 
 ## Quick Start
@@ -90,7 +90,7 @@ tail -f /workspace/wan2gp.log
 
 ### Running on RTX 5090
 
-You must deactivate SageAttention before generating videos.
+SageAttention 2.x is installed from a wheel with RTX 5090 / Blackwell support. If an attention mode fails on a specific model, switch to Scale Dot Product Attention. For FlashVSR, use the Triton Sparse Attention backend.
 
 1. Open the Wan2GP UI and go to the Configuration tab.
 2. Find the Attention Type setting.
