@@ -4,7 +4,8 @@
 
 ### _This template has been tested with an A40_
 
-- RTX 5090 is supported by the prebuilt SageAttention 2.x wheel.
+- RTX 5090 is supported by the prebuilt SageAttention 2.x wheel for video generation.
+- FlashVSR may not work on RTX 5090 with this template because its bundled Triton sparse attention kernel can fail to compile on Blackwell / `sm120`.
 
 ## What is Wan2GP?
 
@@ -90,7 +91,7 @@ tail -f /workspace/wan2gp.log
 
 ### Running on RTX 5090
 
-SageAttention 2.x is installed from a wheel with RTX 5090 / Blackwell support. If an attention mode fails on a specific model, switch to Scale Dot Product Attention. For FlashVSR, use the Triton Sparse Attention backend.
+SageAttention 2.x is installed from a wheel with RTX 5090 / Blackwell support for video generation. If an attention mode fails on a specific model, switch to Scale Dot Product Attention. FlashVSR may not work on RTX 5090 with this template because its bundled Triton Sparse Attention kernel can fail during compilation on Blackwell / `sm120`.
 
 1. Open the Wan2GP UI and go to the Configuration tab.
 2. Find the Attention Type setting.
