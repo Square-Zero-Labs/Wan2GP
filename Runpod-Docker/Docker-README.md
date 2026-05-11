@@ -263,7 +263,7 @@ Dockerfile wheel URL:
 https://github.com/Square-Zero-Labs/Wan2GP-Runpod-Wheels/releases/download/runpod-pytorch2.8.0-cu128-py311-sm86-sm120-v1/sageattention-2.2.0-cp311-cp311-linux_x86_64.whl
 ```
 
-Sparge Attention is intentionally not installed in this image. FlashVSR should use Triton Sparse Attention.
+Sparge Attention is intentionally not installed in this image. FlashVSR should use Triton Sparse Attention, but FlashVSR may not work on RTX 5090 because the bundled Triton sparse attention kernel can fail to compile on Blackwell / `sm120`.
 - Startup script setup and permissions
 - Port exposure
 
