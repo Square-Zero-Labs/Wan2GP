@@ -25,6 +25,9 @@ trap 'error_handler $LINENO' ERR
 
 echo "--- Starting Wan2GP Live Update ---"
 
+PYTORCH_TRITON_VERSION="${PYTORCH_TRITON_VERSION:-$(python3 -c 'from importlib.metadata import version; print(version("pytorch-triton"))')}"
+PYTORCH_CU_INDEX_URL="${PYTORCH_CU_INDEX_URL:-https://download.pytorch.org/whl/nightly/cu128}"
+
 # Step 1: Ensure 'lsof' is available to find the process by port.
 # The base RunPod image may not include this tool.
 if ! command -v lsof &> /dev/null; then
@@ -98,6 +101,12 @@ sed -i \
     requirements.txt
 python3 -m pip install --no-cache-dir -r requirements.txt
 python3 -m pip install --no-cache-dir gradio==5.35.0
+# Restore PyTorch's matching Triton package if a transitive dependency installed standalone triton.
+python3 -m pip uninstall -y triton || true
+rm -rf /usr/local/lib/python3.11/dist-packages/triton /usr/local/lib/python3.11/dist-packages/triton-*.dist-info
+echo "Restoring pytorch-triton $PYTORCH_TRITON_VERSION"
+python3 -m pip install --force-reinstall --no-cache-dir --index-url "$PYTORCH_CU_INDEX_URL" "pytorch-triton==$PYTORCH_TRITON_VERSION"
+python3 -c "import torch, triton; print(f'PyTorch {torch.__version__}; Triton {triton.__version__}')"
 if [ -n "${SAGEATTENTION_WHEEL_URL:-}" ]; then
     python3 -m pip install --no-cache-dir "$SAGEATTENTION_WHEEL_URL"
 else
