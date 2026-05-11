@@ -9,6 +9,7 @@ ENV SHELL=/bin/bash
 ENV BTBN_FFMPEG_TAG=latest
 ENV BTBN_FFMPEG_ASSET=ffmpeg-n7.1-latest-linux64-gpl-7.1.tar.xz
 ENV SAGEATTENTION_WHEEL_URL=https://github.com/Square-Zero-Labs/Wan2GP-Runpod-Wheels/releases/download/runpod-pytorch2.8.0-cu128-py311-sm86-sm120-v1/sageattention-2.2.0-cp311-cp311-linux_x86_64.whl
+ENV PYTORCH_CU_INDEX_URL=https://download.pytorch.org/whl/nightly/cu128
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 
 # Install system dependencies 
@@ -52,11 +53,15 @@ RUN git clone https://github.com/deepbeepmeep/Wan2GP.git /opt/wan2gp_source \
 COPY finetunes/ltx2_distilled_old_vae.json /opt/wan2gp_source/finetunes/ltx2_distilled_old_vae.json
 # Install Python dependencies from the source code.
 # Normalize ORT to a CUDA 12 compatible build (RunPod base image is CUDA 12.8.1).
-# The RunPod PyTorch base image should already include Triton via its torch install;
-# the import check below fails the build early if the base image changes.
+# Some transitive dependencies can install standalone Triton, which shadows the
+# PyTorch-matched pytorch-triton wheel and can break RTX 5090 FlashVSR kernels.
+# Capture the base image's PyTorch-matched Triton build before dependency install,
+# then restore that exact build afterward.
 # The GitHub Actions workflow is configured to maximize build space, so we can
 # now use a single, clean RUN command for better maintainability.
-RUN sed -i \
+RUN PYTORCH_TRITON_VERSION="$(python3 -c 'from importlib.metadata import version; print(version("pytorch-triton"))')" \
+    && echo "Base image pytorch-triton: ${PYTORCH_TRITON_VERSION}" \
+    && sed -i \
     -e '/ort-cuda-13-nightly/d' \
     -e 's/^onnxruntime-gpu==[^;]*; python_version >= "3.11"/onnxruntime-gpu==1.22.0; python_version >= "3.11"/' \
     -e 's/^torch>=/#torch>=/' \
@@ -64,6 +69,9 @@ RUN sed -i \
     /opt/wan2gp_source/requirements.txt \
     && python3 -m pip install --no-cache-dir -r /opt/wan2gp_source/requirements.txt \
     && python3 -m pip install --no-cache-dir gradio==5.35.0 \
+    && (python3 -m pip uninstall -y triton || true) \
+    && rm -rf /usr/local/lib/python3.11/dist-packages/triton /usr/local/lib/python3.11/dist-packages/triton-*.dist-info \
+    && python3 -m pip install --force-reinstall --no-cache-dir --index-url "${PYTORCH_CU_INDEX_URL}" "pytorch-triton==${PYTORCH_TRITON_VERSION}" \
     && python3 -c "import torch, triton; print(f'PyTorch {torch.__version__}; Triton {triton.__version__}')" \
     && : "${SAGEATTENTION_WHEEL_URL:?Set SAGEATTENTION_WHEEL_URL to the SageAttention wheel URL}" \
     && python3 -m pip install --no-cache-dir "${SAGEATTENTION_WHEEL_URL}" \
