@@ -96,6 +96,8 @@ echo "Updating Python dependencies from requirements.txt..."
 sed -i \
     -e '/ort-cuda-13-nightly/d' \
     -e 's/^onnxruntime-gpu==[^;]*; python_version >= "3.11"/onnxruntime-gpu==1.22.0; python_version >= "3.11"/' \
+    -e 's/^torchcodec==.*/torchcodec==0.7.0/' \
+    -e 's/^torchcodec$/torchcodec==0.7.0/' \
     -e 's/^torch>=/#torch>=/' \
     -e 's/^torchvision>=/#torchvision>=/' \
     requirements.txt
