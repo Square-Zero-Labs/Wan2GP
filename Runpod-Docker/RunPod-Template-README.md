@@ -1,6 +1,6 @@
 # Wan2GP - AI Image and Video Generation Template
 
-#### Last Updated on 5/10/2026 to install Sage Attention 2 and update WanGP to v11.61, The Last Mile
+#### Last Updated on 5/17/2026 to WanGP v11.66, Can you keep up?
 
 ### _This template has been tested with an A40_
 

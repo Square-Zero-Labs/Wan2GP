@@ -48,7 +48,7 @@ RUN cd /tmp && \
 # Clone the application source code to a "safe" location that won't be volume-mounted.
 RUN git clone https://github.com/deepbeepmeep/Wan2GP.git /opt/wan2gp_source \
     && cd /opt/wan2gp_source \
-    && git checkout 8387f64fe829fb0accf9d13fac65d34a25f5fc1f
+    && git checkout 79f82257bc33a11f08e53c881dbc7598c9c57f98
 # Add custom finetunes after cloning upstream.
 COPY finetunes/ltx2_distilled_old_vae.json /opt/wan2gp_source/finetunes/ltx2_distilled_old_vae.json
 # Install Python dependencies from the source code.
@@ -64,6 +64,8 @@ RUN PYTORCH_TRITON_VERSION="$(python3 -c 'from importlib.metadata import version
     && sed -i \
     -e '/ort-cuda-13-nightly/d' \
     -e 's/^onnxruntime-gpu==[^;]*; python_version >= "3.11"/onnxruntime-gpu==1.22.0; python_version >= "3.11"/' \
+    -e 's/^torchcodec==.*/torchcodec==0.7.0/' \
+    -e 's/^torchcodec$/torchcodec==0.7.0/' \
     -e 's/^torch>=/#torch>=/' \
     -e 's/^torchvision>=/#torchvision>=/' \
     /opt/wan2gp_source/requirements.txt \
