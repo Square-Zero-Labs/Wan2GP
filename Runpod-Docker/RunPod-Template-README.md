@@ -29,7 +29,7 @@ This template is an extenstion of the official Runpod Pytorch 2.8.0 template. It
 
 ### 2. Wait for Startup (Important!)
 
-- ⏱️ **The application takes a few minutes to fully start** after your pod boots. This is normal.
+- ⏱️ **The application takes a few minutes to fully start**
 
 ### 3. Access Your Applications
 
@@ -40,7 +40,7 @@ This template is an extenstion of the official Runpod Pytorch 2.8.0 template. It
 3. **Login when prompted:**
    - Username: `admin`
    - Password: `gpuPoor2025`
-4. Start generating videos! Note that on the first run of a model (when you hit "generate"), the model is downloaded which can take a few additional minutes. The next time you generate with the same model, the model is already there and the generation can start right away.
+4. Start generating videos! Note that on the first run of a model (when you hit "generate"), the model is downloaded which can take a few additional minutes.
 
 #### Custom Authentication (Optional)
 
@@ -58,8 +58,6 @@ WAN2GP_PASSWORD=your_secure_password
    ```bash
    jupyter server list
    ```
-3. Look for the token in the output
-4. Use just the token to log into Jupyter Lab
 
 ## Troubleshooting
 
@@ -80,7 +78,6 @@ tail -f /workspace/wan2gp.log
 
 - Restart the Wan2GP app without updating code/dependencies:
   - `restart-wan2gp.sh`
-  - This stops any running `wgp.py` and starts a fresh instance on port 7860.
 
 ### Out of Space?
 
