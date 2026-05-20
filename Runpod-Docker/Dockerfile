@@ -6,6 +6,8 @@ ENV DEBIAN_FRONTEND=noninteractive
 ENV PYTHONUNBUFFERED=1
 ENV PIP_NO_CACHE_DIR=1
 ENV SHELL=/bin/bash
+# Avoid hf-xet download path on RunPod; direct Hub downloads are more reliable for large model files here.
+ENV HF_HUB_DISABLE_XET=1
 ENV BTBN_FFMPEG_TAG=latest
 ENV BTBN_FFMPEG_ASSET=ffmpeg-n7.1-latest-linux64-gpl-7.1.tar.xz
 ENV SAGEATTENTION_WHEEL_URL=https://github.com/Square-Zero-Labs/Wan2GP-Runpod-Wheels/releases/download/runpod-pytorch2.8.0-cu128-py311-sm86-sm120-v1/sageattention-2.2.0-cp311-cp311-linux_x86_64.whl
@@ -48,7 +50,7 @@ RUN cd /tmp && \
 # Clone the application source code to a "safe" location that won't be volume-mounted.
 RUN git clone https://github.com/deepbeepmeep/Wan2GP.git /opt/wan2gp_source \
     && cd /opt/wan2gp_source \
-    && git checkout 79f82257bc33a11f08e53c881dbc7598c9c57f98
+    && git checkout 3d56dbfd22424c098351c27d775d9da2ea582ab5
 # Add custom finetunes after cloning upstream.
 COPY finetunes/ltx2_distilled_old_vae.json /opt/wan2gp_source/finetunes/ltx2_distilled_old_vae.json
 # Install Python dependencies from the source code.
