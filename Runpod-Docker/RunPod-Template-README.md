@@ -1,6 +1,6 @@
 # Wan2GP - AI Image and Video Generation Template
 
-#### Last Updated on 5/17/2026 to WanGP v11.66, Can you keep up?
+#### Last Updated on 5/19/2026 to WanGP v11.70, I can hear Voices
 
 ### _This template has been tested with an A40_
 
