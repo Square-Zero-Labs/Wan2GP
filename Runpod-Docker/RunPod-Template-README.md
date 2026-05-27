@@ -1,6 +1,6 @@
 # Wan2GP - AI Image and Video Generation Template
 
-#### Last Updated on 5/22/2026 to WanGP v11.77, I can hear Voices - LTX2 Prompt Relay + LongCat 1.5 Avatar
+#### Last Updated on 5/26/2026 to WanGP v11.80, LoRA Collectors Special Edition
 
 ### _This template has been tested with an A40_
 
