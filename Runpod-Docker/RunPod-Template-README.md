@@ -1,6 +1,6 @@
 # Wan2GP - AI Image and Video Generation Template
 
-#### Last Updated on 5/26/2026 to WanGP v11.80, LoRA Collectors Special Edition
+#### Last Updated on 6/4/2026 to WanGP v12.00, The Journey Continues
 
 ### _This template has been tested with an A40_
 
