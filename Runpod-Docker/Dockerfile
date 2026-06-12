@@ -50,7 +50,7 @@ RUN cd /tmp && \
 # Clone the application source code to a "safe" location that won't be volume-mounted.
 RUN git clone https://github.com/deepbeepmeep/Wan2GP.git /opt/wan2gp_source \
     && cd /opt/wan2gp_source \
-    && git checkout 2b1e159ee3f97d9725897f47e0adfa2651ac8d57
+    && git checkout 93ae78e07474c79e53dcd55f1f96df4c2a8cfa1f
 # Add custom finetunes after cloning upstream.
 COPY finetunes/ltx2_distilled_old_vae.json /opt/wan2gp_source/finetunes/ltx2_distilled_old_vae.json
 # Install Python dependencies from the source code.
