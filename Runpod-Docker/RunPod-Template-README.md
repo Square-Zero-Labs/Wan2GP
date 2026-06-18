@@ -1,6 +1,6 @@
 # Wan2GP - AI Image and Video Generation Template
 
-#### Last Updated on 6/12/2026 to WanGP v12.21: Scail 2 RAM optim + lightx2v support, added LTX2 t2v & Bernini 1.3B
+#### Last Updated on 6/17/2026 to WanGP v12.24, See the Pattern?
 
 ### _This template has been tested with an A40_
 
