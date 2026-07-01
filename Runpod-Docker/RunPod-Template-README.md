@@ -1,6 +1,6 @@
 # Wan2GP - AI Image and Video Generation Template
 
-#### Last Updated on 6/21/2026 to WanGP v12.26, Let's Experiment!
+#### Last Updated on 7/1/2026 to WanGP v12.3, The VRAM Digger
 
 ### _This template has been tested with an A40_
 
