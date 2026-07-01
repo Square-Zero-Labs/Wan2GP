@@ -5,7 +5,7 @@ on:
     branches:
       - main
       - docker
-      - update-6-21-2026
+      - update-7-1-2026
     tags:
       - "v*"
 
