@@ -1,6 +1,6 @@
 # Wan2GP - AI Image and Video Generation Template
 
-#### Last Updated on 8/5/2026 to WanGP v12.42: Added Spectrum, SeedVR2
+#### Last Updated on 8/6/2026 to WanGP v12.432, Cache Me If You Can
 
 ### _This template has been tested with an A40_
 
