@@ -1,6 +1,6 @@
 # Wan2GP - AI Image and Video Generation Template
 
-#### Last Updated on 8/6/2026 to WanGP v12.432, Cache Me If You Can
+#### Last Updated on 8/7/2026 to WanGP v12.434, Cache Me If You Can + LoRA updates
 
 ### _This template has been tested with an A40_
 
