@@ -1,6 +1,6 @@
 # Wan2GP - AI Image and Video Generation Template
 
-#### Last Updated on 8/9/2026 to WanGP v12.434 with PyTorch 2.10 / CUDA 12.8 support
+#### Last Updated on 8/9/2026 to WanGP v12.5 with PyTorch 2.10 / CUDA 12.8 support
 
 ### _This version targets both A40 and RTX 5090 GPUs_
 
