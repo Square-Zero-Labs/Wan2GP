@@ -8,5 +8,5 @@ triton==3.6.0
 onnxruntime-gpu==1.26.0
 gradio==5.35.0
 decord2==3.4.0
+hf-xet==1.6.0
 sageattention==2.2.0
-spas-sage-attn==0.1.0
