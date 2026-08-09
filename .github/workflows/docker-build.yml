@@ -72,6 +72,5 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
           build-args: |
             SAGEATTENTION_WHEEL_SHA256=${{ vars.SAGEATTENTION_WHEEL_SHA256 || '9fa280f209779caefecf70dcbc368eb1514348e89cd6fcc3e92d50e37965ed65' }}
-            SPARGEATTN_WHEEL_SHA256=${{ vars.SPARGEATTN_WHEEL_SHA256 || '45121bcd834eeabc58032287e60ef48837ec9afebe39940e35796bbb9ec645a5' }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
