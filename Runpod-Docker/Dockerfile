@@ -1,97 +1,179 @@
-# Use the official RunPod base image, which includes a pre-configured environment.
-FROM runpod/pytorch:2.8.0-py3.11-cuda12.8.1-cudnn-devel-ubuntu22.04
+# syntax=docker/dockerfile:1.7
 
-# Set environment variables for non-interactive installs.
-ENV DEBIAN_FRONTEND=noninteractive
-ENV PYTHONUNBUFFERED=1
-ENV PIP_NO_CACHE_DIR=1
-ENV SHELL=/bin/bash
-# Avoid hf-xet download path on RunPod; direct Hub downloads are more reliable for large model files here.
-ENV HF_HUB_DISABLE_XET=1
-ENV BTBN_FFMPEG_TAG=latest
-ENV BTBN_FFMPEG_ASSET=ffmpeg-n7.1-latest-linux64-gpl-7.1.tar.xz
-ENV SAGEATTENTION_WHEEL_URL=https://github.com/Square-Zero-Labs/Wan2GP-Runpod-Wheels/releases/download/runpod-pytorch2.8.0-cu128-py311-sm86-sm120-v1/sageattention-2.2.0-cp311-cp311-linux_x86_64.whl
-ENV PYTORCH_CU_INDEX_URL=https://download.pytorch.org/whl/nightly/cu128
+# The build image supplies nvcc-compatible CUDA headers when assembling the
+# Python environment. Native attention extensions are downloaded as verified
+# release artifacts, so no compiler or CUDA toolkit is copied into the runtime.
+FROM runpod/base:1.1.0-cuda1281-ubuntu2404@sha256:f9879c67c7da08d2f7e3c8bfa5ec5f6104ad9aa8577a93a095fc4bc2bd902112 AS dependencies
+
+ARG WAN2GP_REF=5e898b1ef15ed65910fb14f5f1f4a303957f2c60
+
+ENV DEBIAN_FRONTEND=noninteractive \
+    PIP_DISABLE_PIP_VERSION_CHECK=1 \
+    PIP_NO_CACHE_DIR=1 \
+    PYTHONUNBUFFERED=1 \
+    VIRTUAL_ENV=/opt/wan2gp-venv \
+    PATH=/opt/wan2gp-venv/bin:${PATH}
+
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 
-# Install system dependencies 
-RUN rm -f /etc/apt/sources.list.d/cuda*.list && \
-    apt-get update && \
-    apt-get install -y --no-install-recommends \
-    tmux \
-    build-essential \
-    curl \
-    ca-certificates \
-    xz-utils \
-    rsync \
-    apache2-utils \
+# OS packages are pinned transitively by the immutable base-image digest and
+# Ubuntu snapshot visible to that image build.
+# hadolint ignore=DL3008
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends \
+        ca-certificates \
+        curl \
+        ffmpeg \
+        git \
+        python3.11-dev \
+        python3.11-venv \
+    && python3.11 -m venv "$VIRTUAL_ENV" \
+    && python -m pip install --upgrade \
+        pip==26.2.1 \
+        wheel==0.47.0 \
+        packaging==26.3 \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
-# Ubuntu 22.04 only ships FFmpeg 4.4.x, which is too old for Wan2GP's current
-# decode path. Install BtbN's Linux x86_64 GPL build from the 7.1 branch:
-# - release-branch build, not master
-# - stable latest tag + 7.1 asset name avoids BtbN daily autobuild retention expiry
-# - checksum verified at build time against the release's checksums.sha256 file
-# BtbN targets glibc >= 2.28, which is compatible with Ubuntu 22.04.
-RUN cd /tmp && \
-    curl -fsSLO "https://github.com/BtbN/FFmpeg-Builds/releases/download/${BTBN_FFMPEG_TAG}/checksums.sha256" && \
-    curl -fsSLO "https://github.com/BtbN/FFmpeg-Builds/releases/download/${BTBN_FFMPEG_TAG}/${BTBN_FFMPEG_ASSET}" && \
-    grep " ${BTBN_FFMPEG_ASSET}\$" checksums.sha256 > "${BTBN_FFMPEG_ASSET}.sha256" && \
-    sha256sum -c "${BTBN_FFMPEG_ASSET}.sha256" && \
-    mkdir -p /opt/btbn-ffmpeg && \
-    tar -xf "${BTBN_FFMPEG_ASSET}" -C /opt/btbn-ffmpeg --strip-components=1 && \
-    install -m 755 /opt/btbn-ffmpeg/bin/ffmpeg /usr/local/bin/ffmpeg && \
-    install -m 755 /opt/btbn-ffmpeg/bin/ffprobe /usr/local/bin/ffprobe && \
-    if [ -f /opt/btbn-ffmpeg/bin/ffplay ]; then install -m 755 /opt/btbn-ffmpeg/bin/ffplay /usr/local/bin/ffplay; fi && \
-    /usr/local/bin/ffmpeg -version && \
-    rm -rf /tmp/checksums.sha256 /tmp/${BTBN_FFMPEG_ASSET} /tmp/${BTBN_FFMPEG_ASSET}.sha256
+COPY Runpod-Docker/core-constraints.txt /opt/wan2gp-container/core-constraints.txt
 
-# Clone the application source code to a "safe" location that won't be volume-mounted.
-RUN git clone https://github.com/deepbeepmeep/Wan2GP.git /opt/wan2gp_source \
-    && cd /opt/wan2gp_source \
-    && git checkout 5e898b1ef15ed65910fb14f5f1f4a303957f2c60
-# Add custom finetunes after cloning upstream.
+# Install the image-owned CUDA stack first. PyTorch 2.10's cu128 wheel pins its
+# matching Triton 3.6 runtime; constraints prevent upstream requirements from
+# replacing any of these ABI-sensitive packages.
+RUN python -m pip install \
+        --index-url https://download.pytorch.org/whl/cu128 \
+        torch==2.10.0 \
+        torchvision==0.25.0 \
+        torchaudio==2.10.0 \
+    && python -m pip install \
+        --constraint /opt/wan2gp-container/core-constraints.txt \
+        torchcodec==0.10.0 \
+        onnxruntime-gpu==1.26.0 \
+        gradio==5.35.0 \
+        decord2==3.4.0 \
+        jupyterlab==4.5.9 \
+        ipykernel==7.3.0
+
+COPY Runpod-Docker/filter-requirements.py /opt/wan2gp-container/filter-requirements.py
+COPY Runpod-Docker/validate-runtime.py /opt/wan2gp-container/validate-runtime.py
+
+RUN git clone --filter=blob:none https://github.com/deepbeepmeep/Wan2GP.git /opt/wan2gp_source \
+    && git -C /opt/wan2gp_source checkout --detach "$WAN2GP_REF" \
+    && python /opt/wan2gp-container/filter-requirements.py \
+        /opt/wan2gp_source/requirements.txt \
+        /tmp/requirements.filtered.txt \
+    && python -m pip install \
+        --constraint /opt/wan2gp-container/core-constraints.txt \
+        --requirement /tmp/requirements.filtered.txt
+
 COPY finetunes/ltx2_distilled_old_vae.json /opt/wan2gp_source/finetunes/ltx2_distilled_old_vae.json
-# Install Python dependencies from the source code.
-# Normalize ORT to a CUDA 12 compatible build (RunPod base image is CUDA 12.8.1).
-# Some transitive dependencies can install standalone Triton, which shadows the
-# PyTorch-matched pytorch-triton wheel and can break RTX 5090 FlashVSR kernels.
-# Capture the base image's PyTorch-matched Triton build before dependency install,
-# then restore that exact build afterward.
-# The GitHub Actions workflow is configured to maximize build space, so we can
-# now use a single, clean RUN command for better maintainability.
-RUN PYTORCH_TRITON_VERSION="$(python3 -c 'from importlib.metadata import version; print(version("pytorch-triton"))')" \
-    && echo "Base image pytorch-triton: ${PYTORCH_TRITON_VERSION}" \
-    && sed -i \
-    -e '/ort-cuda-13-nightly/d' \
-    -e 's/^onnxruntime-gpu==[^;]*; python_version >= "3.11"/onnxruntime-gpu==1.22.0; python_version >= "3.11"/' \
-    -e 's/^torchcodec==.*/torchcodec==0.7.0/' \
-    -e 's/^torchcodec$/torchcodec==0.7.0/' \
-    -e 's/^torch>=/#torch>=/' \
-    -e 's/^torchvision>=/#torchvision>=/' \
-    /opt/wan2gp_source/requirements.txt \
-    && python3 -m pip install --no-cache-dir -r /opt/wan2gp_source/requirements.txt \
-    && python3 -m pip install --no-cache-dir gradio==5.35.0 \
-    && (python3 -m pip uninstall -y triton || true) \
-    && rm -rf /usr/local/lib/python3.11/dist-packages/triton /usr/local/lib/python3.11/dist-packages/triton-*.dist-info \
-    && python3 -m pip install --force-reinstall --no-cache-dir --index-url "${PYTORCH_CU_INDEX_URL}" "pytorch-triton==${PYTORCH_TRITON_VERSION}" \
-    && python3 -c "import torch, triton; print(f'PyTorch {torch.__version__}; Triton {triton.__version__}')" \
-    && : "${SAGEATTENTION_WHEEL_URL:?Set SAGEATTENTION_WHEEL_URL to the SageAttention wheel URL}" \
-    && python3 -m pip install --no-cache-dir "${SAGEATTENTION_WHEEL_URL}" \
-    && python3 -c 'from importlib.metadata import version; import sageattention; assert version("sageattention").startswith("2"), version("sageattention"); print("Sage Attention " + version("sageattention") + " installed")' \
-    && rm -rf /root/.cache/pip
 
-# Copy and set up our startup and update scripts
+
+FROM dependencies AS builder
+
+SHELL ["/bin/bash", "-o", "pipefail", "-c"]
+
+ARG ATTENTION_WHEEL_RELEASE=8-8-2026
+ARG SAGEATTENTION_WHEEL_URL=https://github.com/Square-Zero-Labs/Wan2GP-Runpod-Wheels/releases/download/${ATTENTION_WHEEL_RELEASE}/sageattention-2.2.0-cp311-cp311-linux_x86_64.whl
+ARG SPARGEATTN_WHEEL_URL=https://github.com/Square-Zero-Labs/Wan2GP-Runpod-Wheels/releases/download/${ATTENTION_WHEEL_RELEASE}/spas_sage_attn-0.1.0-cp311-cp311-linux_x86_64.whl
+ARG SAGEATTENTION_WHEEL_SHA256=9fa280f209779caefecf70dcbc368eb1514348e89cd6fcc3e92d50e37965ed65
+ARG SPARGEATTN_WHEEL_SHA256=45121bcd834eeabc58032287e60ef48837ec9afebe39940e35796bbb9ec645a5
+
+# Refuse an unverifiable attention artifact. Defaults are pinned to the
+# published release; the GitHub workflow can override them with repository
+# variables when advancing to a new release.
+RUN test -n "$SAGEATTENTION_WHEEL_SHA256" \
+    || { echo "SAGEATTENTION_WHEEL_SHA256 is required" >&2; exit 1; } \
+    && test -n "$SPARGEATTN_WHEEL_SHA256" \
+    || { echo "SPARGEATTN_WHEEL_SHA256 is required" >&2; exit 1; } \
+    && mkdir -p /opt/wan2gp-container/attention-wheels \
+    && curl --fail --location --retry 3 --retry-all-errors \
+        "$SAGEATTENTION_WHEEL_URL" \
+        --output /opt/wan2gp-container/attention-wheels/sageattention-2.2.0-cp311-cp311-linux_x86_64.whl \
+    && curl --fail --location --retry 3 --retry-all-errors \
+        "$SPARGEATTN_WHEEL_URL" \
+        --output /opt/wan2gp-container/attention-wheels/spas_sage_attn-0.1.0-cp311-cp311-linux_x86_64.whl \
+    && echo "$SAGEATTENTION_WHEEL_SHA256  /opt/wan2gp-container/attention-wheels/sageattention-2.2.0-cp311-cp311-linux_x86_64.whl" \
+        | sha256sum --check --strict \
+    && echo "$SPARGEATTN_WHEEL_SHA256  /opt/wan2gp-container/attention-wheels/spas_sage_attn-0.1.0-cp311-cp311-linux_x86_64.whl" \
+        | sha256sum --check --strict \
+    && python -m pip install --no-deps /opt/wan2gp-container/attention-wheels/*.whl \
+    && python -m pip check \
+    && python /opt/wan2gp-container/validate-runtime.py \
+    && rm -rf /tmp/requirements.filtered.txt /root/.cache
+
+
+# Lean RunPod service base: nginx, SSH, web terminal, and Jupyter integration.
+FROM runpod/base:1.1.0-ubuntu2404@sha256:8fafffd0c67a48117dff09031ed16e79c0a83cc6996472f4b4dcb76343102a66 AS runtime
+
+ARG WAN2GP_REF=5e898b1ef15ed65910fb14f5f1f4a303957f2c60
+
+LABEL org.opencontainers.image.title="Wan2GP RunPod" \
+      org.opencontainers.image.description="Wan2GP on PyTorch 2.10 / CUDA 12.8 for A40 and RTX 5090" \
+      io.square-zero-labs.wan2gp.source-ref="$WAN2GP_REF" \
+      io.square-zero-labs.cuda="12.8" \
+      io.square-zero-labs.pytorch="2.10.0"
+
+ENV DEBIAN_FRONTEND=noninteractive \
+    PYTHONUNBUFFERED=1 \
+    PIP_DISABLE_PIP_VERSION_CHECK=1 \
+    PIP_NO_CACHE_DIR=1 \
+    HF_HUB_DISABLE_XET=1 \
+    SHELL=/bin/bash \
+    VIRTUAL_ENV=/opt/wan2gp-venv \
+    PATH=/opt/wan2gp-venv/bin:${PATH}
+
+SHELL ["/bin/bash", "-o", "pipefail", "-c"]
+
+# Runtime package versions are bound by the immutable base-image digest and its
+# Ubuntu package snapshot.
+# hadolint ignore=DL3008
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends \
+        apache2-utils \
+        ca-certificates \
+        curl \
+        ffmpeg \
+        openssl \
+        rsync \
+        supervisor \
+    && mkdir -p /etc/nginx/conf.d /etc/supervisor \
+    && sed -i '/^http {/a\    include /etc/nginx/conf.d/*.conf;' /etc/nginx/nginx.conf \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
+
+COPY --from=builder /opt/wan2gp-venv /opt/wan2gp-venv
+COPY --from=builder /opt/wan2gp_source /opt/wan2gp_source
+COPY --from=builder /opt/wan2gp-container /opt/wan2gp-container
+
 COPY Runpod-Docker/start-wan2gp.sh /usr/local/bin/start-wan2gp.sh
 COPY Runpod-Docker/update-wan2gp.sh /usr/local/bin/update-wan2gp.sh
 COPY Runpod-Docker/restart-wan2gp.sh /usr/local/bin/restart-wan2gp.sh
-RUN chmod +x /usr/local/bin/start-wan2gp.sh \
-    && chmod +x /usr/local/bin/update-wan2gp.sh \
-    && chmod +x /usr/local/bin/restart-wan2gp.sh
+COPY Runpod-Docker/validate-gpu.py /opt/wan2gp-container/validate-gpu.py
+COPY Runpod-Docker/wan2gp-supervisor.conf /etc/supervisor/wan2gp.conf
+COPY Runpod-Docker/wan2gp-nginx.conf /etc/nginx/conf.d/wan2gp.conf
 
-# Expose ports for authenticated Gradio interface and Jupyter Lab
+RUN chmod 0755 \
+        /usr/local/bin/start-wan2gp.sh \
+        /usr/local/bin/update-wan2gp.sh \
+        /usr/local/bin/restart-wan2gp.sh \
+        /opt/wan2gp-container/filter-requirements.py \
+        /opt/wan2gp-container/validate-runtime.py \
+        /opt/wan2gp-container/validate-gpu.py \
+    && python -m ipykernel install \
+        --prefix=/usr/local \
+        --name=wan2gp \
+        --display-name='Wan2GP (Python 3.11)' \
+    && nginx -t \
+    && /usr/bin/python3 -c \
+        'from supervisor.options import ServerOptions; ServerOptions().realize(["-c", "/etc/supervisor/wan2gp.conf"]); print("Supervisor configuration parsed")' \
+    && if command -v nvcc >/dev/null; then \
+        echo "ERROR: nvcc must not be present in the runtime image" >&2; \
+        exit 1; \
+    fi
+
+WORKDIR /workspace/Wan2GP
+
 EXPOSE 7862 8888
 
-# Use our startup script as the main command
-CMD ["/usr/local/bin/start-wan2gp.sh"] 
+CMD ["/usr/local/bin/start-wan2gp.sh"]
