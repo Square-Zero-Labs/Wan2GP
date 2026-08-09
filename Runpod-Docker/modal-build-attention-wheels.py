@@ -20,9 +20,8 @@ import modal
 APP_NAME = "wan2gp-attention-wheel-builder"
 VOLUME_NAME = "wan2gp-runpod-wheels"
 VOLUME_MOUNT = Path("/modal-wheels")
-RELEASE_TAG = "pytorch2.10.0-cu128-py311-sm86-sm120-v1"
+RELEASE_TAG = "pytorch2.10.0-cu128-py311-sm86-sm120-sage-v1"
 SAGEATTENTION_COMMIT = "d1a57a546c3d395b1ffcbeecc66d81db76f3b4b5"
-SPARGEATTN_COMMIT = "067d80cb6b76345c7b8be40e86c7d19a3cf7c4eb"
 
 LOCAL_DIR = Path(__file__).resolve().parent
 REMOTE_DIR = Path("/repo/Runpod-Docker")
@@ -38,10 +37,6 @@ build_image = (
         "torch==2.10.0",
         index_url="https://download.pytorch.org/whl/cu128",
     )
-    # Sparge imports these from its package initializer. Install the same
-    # lightweight runtime dependencies used by Wan2GP so native import checks
-    # exercise the public package path, not only isolated shared objects.
-    .pip_install("einops", "numpy==2.1.2")
     .env(
         {
             "CUDA_HOME": "/usr/local/cuda",
@@ -74,10 +69,7 @@ def sha256(path: Path) -> str:
 
 def wheel_paths(directory: Path) -> list[Path]:
     paths = sorted(directory.glob("*.whl"))
-    if [path.name.split("-", 1)[0] for path in paths] != [
-        "sageattention",
-        "spas_sage_attn",
-    ]:
+    if [path.name.split("-", 1)[0] for path in paths] != ["sageattention"]:
         raise RuntimeError(f"unexpected wheel outputs: {[path.name for path in paths]}")
     return paths
 
@@ -96,10 +88,7 @@ def validate_native_imports(paths: list[Path]) -> None:
                     "import sageattention._fused",
                     "import sageattention._qattn_sm80",
                     "import sageattention._qattn_sm89",
-                    "import spas_sage_attn._fused",
-                    "import spas_sage_attn._qattn_sm80",
-                    "import spas_sage_attn._qattn_sm89",
-                    'print("SageAttention and SpargeAttention native extension imports passed")',
+                    'print("SageAttention native extension imports passed")',
                 ]
             ),
         ],
@@ -156,7 +145,6 @@ def build_and_store() -> dict[str, object]:
                 "PYTHON_BIN": "python",
                 "SAGEATTENTION_COMMIT": SAGEATTENTION_COMMIT,
                 "SKIP_NATIVE_IMPORT_TEST": "1",
-                "SPARGEATTN_COMMIT": SPARGEATTN_COMMIT,
                 "WHEEL_OUTPUT_DIR": str(dist_dir),
             }
         )
@@ -180,7 +168,6 @@ def build_and_store() -> dict[str, object]:
             "modal_task_id": os.environ.get("MODAL_TASK_ID"),
             "python": platform.python_version(),
             "sageattention_commit": SAGEATTENTION_COMMIT,
-            "spargeattention_commit": SPARGEATTN_COMMIT,
             "wheels": manifest_entries,
         }
         (dist_dir / "MODAL-BUILD.json").write_text(
