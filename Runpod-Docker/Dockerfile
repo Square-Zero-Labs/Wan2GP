@@ -11,6 +11,8 @@ ENV DEBIAN_FRONTEND=noninteractive \
     PIP_DISABLE_PIP_VERSION_CHECK=1 \
     PIP_NO_CACHE_DIR=1 \
     PYTHONUNBUFFERED=1 \
+    HF_HUB_ENABLE_HF_TRANSFER=0 \
+    HF_XET_HIGH_PERFORMANCE=1 \
     VIRTUAL_ENV=/opt/wan2gp-venv \
     PATH=/opt/wan2gp-venv/bin:${PATH}
 
@@ -51,6 +53,7 @@ RUN python -m pip install \
         onnxruntime-gpu==1.26.0 \
         gradio==5.35.0 \
         decord2==3.4.0 \
+        hf-xet==1.6.0 \
         jupyterlab==4.5.9 \
         ipykernel==7.3.0
 
@@ -75,29 +78,21 @@ SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 
 ARG ATTENTION_WHEEL_RELEASE=8-8-2026
 ARG SAGEATTENTION_WHEEL_URL=https://github.com/Square-Zero-Labs/Wan2GP-Runpod-Wheels/releases/download/${ATTENTION_WHEEL_RELEASE}/sageattention-2.2.0-cp311-cp311-linux_x86_64.whl
-ARG SPARGEATTN_WHEEL_URL=https://github.com/Square-Zero-Labs/Wan2GP-Runpod-Wheels/releases/download/${ATTENTION_WHEEL_RELEASE}/spas_sage_attn-0.1.0-cp311-cp311-linux_x86_64.whl
 ARG SAGEATTENTION_WHEEL_SHA256=9fa280f209779caefecf70dcbc368eb1514348e89cd6fcc3e92d50e37965ed65
-ARG SPARGEATTN_WHEEL_SHA256=45121bcd834eeabc58032287e60ef48837ec9afebe39940e35796bbb9ec645a5
 
 # Refuse an unverifiable attention artifact. Defaults are pinned to the
 # published release; the GitHub workflow can override them with repository
 # variables when advancing to a new release.
 RUN test -n "$SAGEATTENTION_WHEEL_SHA256" \
     || { echo "SAGEATTENTION_WHEEL_SHA256 is required" >&2; exit 1; } \
-    && test -n "$SPARGEATTN_WHEEL_SHA256" \
-    || { echo "SPARGEATTN_WHEEL_SHA256 is required" >&2; exit 1; } \
     && mkdir -p /opt/wan2gp-container/attention-wheels \
     && curl --fail --location --retry 3 --retry-all-errors \
         "$SAGEATTENTION_WHEEL_URL" \
         --output /opt/wan2gp-container/attention-wheels/sageattention-2.2.0-cp311-cp311-linux_x86_64.whl \
-    && curl --fail --location --retry 3 --retry-all-errors \
-        "$SPARGEATTN_WHEEL_URL" \
-        --output /opt/wan2gp-container/attention-wheels/spas_sage_attn-0.1.0-cp311-cp311-linux_x86_64.whl \
     && echo "$SAGEATTENTION_WHEEL_SHA256  /opt/wan2gp-container/attention-wheels/sageattention-2.2.0-cp311-cp311-linux_x86_64.whl" \
         | sha256sum --check --strict \
-    && echo "$SPARGEATTN_WHEEL_SHA256  /opt/wan2gp-container/attention-wheels/spas_sage_attn-0.1.0-cp311-cp311-linux_x86_64.whl" \
-        | sha256sum --check --strict \
-    && python -m pip install --no-deps /opt/wan2gp-container/attention-wheels/*.whl \
+    && python -m pip install --no-deps \
+        /opt/wan2gp-container/attention-wheels/sageattention-2.2.0-cp311-cp311-linux_x86_64.whl \
     && python -m pip check \
     && python /opt/wan2gp-container/validate-runtime.py \
     && rm -rf /tmp/requirements.filtered.txt /root/.cache
@@ -118,7 +113,8 @@ ENV DEBIAN_FRONTEND=noninteractive \
     PYTHONUNBUFFERED=1 \
     PIP_DISABLE_PIP_VERSION_CHECK=1 \
     PIP_NO_CACHE_DIR=1 \
-    HF_HUB_DISABLE_XET=1 \
+    HF_HUB_ENABLE_HF_TRANSFER=0 \
+    HF_XET_HIGH_PERFORMANCE=1 \
     SHELL=/bin/bash \
     VIRTUAL_ENV=/opt/wan2gp-venv \
     PATH=/opt/wan2gp-venv/bin:${PATH}
