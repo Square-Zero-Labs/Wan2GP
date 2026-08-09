@@ -5,7 +5,6 @@ set -Eeuo pipefail
 # Run this on a Linux x86_64 machine using the Torch 2.10 / CUDA 12.8 image.
 
 SAGEATTENTION_COMMIT="${SAGEATTENTION_COMMIT:-d1a57a546c3d395b1ffcbeecc66d81db76f3b4b5}"
-SPARGEATTN_COMMIT="${SPARGEATTN_COMMIT:-067d80cb6b76345c7b8be40e86c7d19a3cf7c4eb}"
 WHEEL_OUTPUT_DIR="${WHEEL_OUTPUT_DIR:-/workspace/wan2gp-attention-wheels}"
 BUILD_ROOT="${ATTENTION_BUILD_ROOT:-/workspace/wan2gp-attention-build}"
 PYTHON_BIN="${PYTHON_BIN:-python3.11}"
@@ -42,13 +41,6 @@ PY
 mkdir -p "$WHEEL_OUTPUT_DIR" "$BUILD_ROOT"
 rm -f "$WHEEL_OUTPUT_DIR"/*.whl "$WHEEL_OUTPUT_DIR"/SHA256SUMS.txt "$WHEEL_OUTPUT_DIR"/BUILD-INFO.txt
 
-# Sparge's source generator invokes `python` directly. Prepend a dedicated shim
-# so it cannot accidentally use the RunPod base's default Python 3.12.
-PYTHON_BIN_PATH="$(command -v "$PYTHON_BIN")"
-mkdir -p "$BUILD_ROOT/tool-shims"
-ln -sf "$PYTHON_BIN_PATH" "$BUILD_ROOT/tool-shims/python"
-export PATH="$BUILD_ROOT/tool-shims:$PATH"
-
 "$PYTHON_BIN" -m pip install --no-cache-dir --upgrade \
   "setuptools<=75.8.2" wheel ninja packaging build
 
@@ -60,19 +52,6 @@ git -C "$BUILD_ROOT/SageAttention" checkout --detach "$SAGEATTENTION_COMMIT"
   TORCH_CUDA_ARCH_LIST="8.6;12.0" \
     MAX_JOBS="$MAX_JOBS" \
     EXT_PARALLEL="$EXT_PARALLEL" \
-    "$PYTHON_BIN" -m pip wheel --no-deps --no-build-isolation . -w "$WHEEL_OUTPUT_DIR"
-)
-
-rm -rf "$BUILD_ROOT/SpargeAttn"
-git clone --filter=blob:none https://github.com/woct0rdho/SpargeAttn.git "$BUILD_ROOT/SpargeAttn"
-git -C "$BUILD_ROOT/SpargeAttn" checkout --detach "$SPARGEATTN_COMMIT"
-(
-  cd "$BUILD_ROOT/SpargeAttn"
-  # Sparge deliberately builds its sm80 binary for sm86 Ampere GPUs.
-  unset NVCC_APPEND_FLAGS
-  TORCH_CUDA_ARCH_LIST="8.0;12.0" \
-    MAX_JOBS="$MAX_JOBS" \
-    NVCC_PREPEND_FLAGS="-include assert.h" \
     "$PYTHON_BIN" -m pip wheel --no-deps --no-build-isolation . -w "$WHEEL_OUTPUT_DIR"
 )
 
@@ -88,8 +67,6 @@ git -C "$BUILD_ROOT/SpargeAttn" checkout --detach "$SPARGEATTN_COMMIT"
     echo "nvcc=$(nvcc --version | sed -n '/release /p')"
     echo "sageattention_commit=$SAGEATTENTION_COMMIT"
     echo "sageattention_arches=8.6;12.0"
-    echo "spargeattention_commit=$SPARGEATTN_COMMIT"
-    echo "spargeattention_arches=8.0;12.0"
   } > BUILD-INFO.txt
 )
 
@@ -100,11 +77,8 @@ if [ "${SKIP_NATIVE_IMPORT_TEST:-0}" != "1" ]; then
 import sageattention._fused
 import sageattention._qattn_sm80
 import sageattention._qattn_sm89
-import spas_sage_attn._fused
-import spas_sage_attn._qattn_sm80
-import spas_sage_attn._qattn_sm89
 
-print("SageAttention and SpargeAttention native extension imports passed")
+print("SageAttention native extension imports passed")
 PY
 fi
 
