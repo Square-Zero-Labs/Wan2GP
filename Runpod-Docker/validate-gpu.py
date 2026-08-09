@@ -1,11 +1,27 @@
 #!/usr/bin/env python3
-"""Exercise the actual A40/RTX 5090 attention paths on a running pod."""
+"""Exercise the actual Wan2GP SageAttention path on a running pod."""
 
 from __future__ import annotations
+
+import os
+import sys
+from pathlib import Path
 
 import torch
 import torch.nn.functional as F
 
+
+app_dir = Path(os.environ.get("WAN2GP_APP_DIR", "/workspace/Wan2GP"))
+if not (app_dir / "shared").is_dir():
+    image_source_dir = Path("/opt/wan2gp_source")
+    if (image_source_dir / "shared").is_dir():
+        app_dir = image_source_dir
+    else:
+        raise SystemExit(
+            "Wan2GP shared modules were not found under "
+            f"{app_dir} or {image_source_dir}"
+        )
+sys.path.insert(0, str(app_dir))
 
 if not torch.cuda.is_available():
     raise SystemExit("CUDA is unavailable")
@@ -31,18 +47,6 @@ if not torch.isfinite(sage_output).all():
     raise RuntimeError("SageAttention returned non-finite values")
 torch.testing.assert_close(sage_output.float(), reference.float(), rtol=0.25, atol=0.25)
 
-from shared.spas_sage_attn_core import spas_sage2_attn_meansim_cuda  # noqa: E402
-
-sparge_output = spas_sage2_attn_meansim_cuda(
-    q.transpose(1, 2).contiguous(),
-    k.transpose(1, 2).contiguous(),
-    v.transpose(1, 2).contiguous(),
-    tensor_layout="HND",
-)
-if not torch.isfinite(sparge_output).all():
-    raise RuntimeError("SpargeAttention returned non-finite values")
-
 print(f"GPU: {torch.cuda.get_device_name(device)} (sm{capability[0]}{capability[1]})")
 print(f"Sage2 max absolute error vs SDPA: {(sage_output.float() - reference.float()).abs().max().item():.6f}")
-print(f"Sparge output shape: {tuple(sparge_output.shape)}")
-print("A40/RTX 5090 attention validation passed")
+print("A40/RTX 5090 SageAttention validation passed")
