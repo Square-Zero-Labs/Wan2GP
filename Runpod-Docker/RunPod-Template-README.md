@@ -5,7 +5,7 @@
 ### _This version targets both A40 and RTX 5090 GPUs_
 
 - Python 3.11, PyTorch 2.10, and CUDA 12.8 are installed in the container.
-- Prebuilt SageAttention 2.2 and SpargeAttention 0.1 wheels include the native targets needed by both GPUs.
+- The prebuilt SageAttention 2.2 wheel includes the native targets needed by both GPUs.
 
 ## What is Wan2GP?
 
@@ -17,7 +17,7 @@ This template uses a lean RunPod Ubuntu 24.04 service base with a pinned CUDA 12
 
 - ✅ **Wan2GP Application** - Ready to use on port 7862 (password protected)
 - ✅ **Jupyter Lab** - Development environment on port 8888
-- ✅ **All Dependencies** - PyTorch, Triton, FFmpeg, ONNX Runtime GPU, SageAttention, SpargeAttention, and required python libraries pre-installed
+- ✅ **All Dependencies** - PyTorch, Triton, FFmpeg, ONNX Runtime GPU, SageAttention, and required python libraries pre-installed
 - ✅ **Storage** - Your models and outputs saved to `/workspace`
 
 ## Quick Start
@@ -88,7 +88,7 @@ tail -f /workspace/wan2gp.log
 
 ### Running on RTX 5090
 
-SageAttention 2.2 and SpargeAttention 0.1 are installed from wheels built for the PyTorch 2.10 / CUDA 12.8 stack with RTX 5090 / Blackwell support. If an attention mode fails on a specific model, switch to Scale Dot Product Attention.
+SageAttention 2.2 is installed from a wheel built for the PyTorch 2.10 / CUDA 12.8 stack with RTX 5090 / Blackwell support. FlashVSR uses its bundled Triton sparse-attention backend. If an attention mode fails on a specific model, switch to Scale Dot Product Attention.
 
 1. Open the Wan2GP UI and go to the Configuration tab.
 2. Find the Attention Type setting.
