@@ -1,127 +1,123 @@
 #!/bin/bash
-set -e
+set -Eeuo pipefail
 
-# --- Wan2GP Live Update Script ---
-# This script updates the Wan2GP application in a running RunPod container.
-# It is designed to work around the environment's auto-restart mechanism.
-# Note: Changes are temporary. A full pod restart will revert to the
-# version specified in the Dockerfile.
+APP_DIR="/workspace/Wan2GP"
+STATE_DIR="/workspace/.wan2gp-state"
+VENV_DIR="/opt/wan2gp-venv"
+SUPPORT_DIR="/opt/wan2gp-container"
+SUPERVISOR_CONFIG="/etc/supervisor/wan2gp.conf"
+TIMESTAMP="$(date -u +%Y%m%dT%H%M%SZ)"
+PREVIOUS_HEAD=""
+PREVIOUS_FREEZE=""
+PREVIOUS_STATE=""
+PREVIOUS_SOURCE_STATE=""
+UPDATE_COMMITTED=0
 
-# Safety Net: Define a function to handle errors gracefully.
-function error_handler {
-  echo ""
-  echo "❌ ERROR: The update script failed on line $1."
-  echo "An error occurred, and the update could not be completed."
+restore_previous_version() {
+  local exit_code="$1"
+  trap - ERR
+  set +e
+  echo
+  echo "ERROR: live update failed; restoring the previous version..." >&2
 
-  # Restore the backup script if it exists, to prevent a broken state.
-  if [ -f "/workspace/Wan2GP/wgp.py.bak" ] && [ ! -f "/workspace/Wan2GP/wgp.py" ]; then
-    echo "Restoring backup of wgp.py..."
-    mv /workspace/Wan2GP/wgp.py.bak /workspace/Wan2GP/wgp.py
-    echo "Backup restored. You may need to restart the application manually."
+  cd "$APP_DIR" 2>/dev/null || true
+  if [ -n "$PREVIOUS_HEAD" ]; then
+    git reset --hard "$PREVIOUS_HEAD"
   fi
-  exit 1
+  if [ -n "$PREVIOUS_FREEZE" ] && [ -f "$PREVIOUS_FREEZE" ]; then
+    # Sync, rather than install, so packages introduced by the failed update are
+    # removed and every pre-update version (including user additions) is restored.
+    uv pip sync \
+      --strict \
+      --python "$VENV_DIR/bin/python" \
+      --constraint "$SUPPORT_DIR/core-constraints.txt" \
+      "$PREVIOUS_FREEZE"
+  fi
+  if [ -n "$PREVIOUS_STATE" ] && [ -f "$PREVIOUS_STATE" ]; then
+    cp "$PREVIOUS_STATE" "$STATE_DIR/requirements.filtered.txt"
+  elif [ "$UPDATE_COMMITTED" -eq 1 ]; then
+    rm -f "$STATE_DIR/requirements.filtered.txt"
+  fi
+  if [ -n "$PREVIOUS_SOURCE_STATE" ] && [ -f "$PREVIOUS_SOURCE_STATE" ]; then
+    cp "$PREVIOUS_SOURCE_STATE" "$STATE_DIR/source-commit.txt"
+  elif [ "$UPDATE_COMMITTED" -eq 1 ]; then
+    rm -f "$STATE_DIR/source-commit.txt"
+  fi
+
+  supervisorctl -c "$SUPERVISOR_CONFIG" stop wan2gp || true
+  supervisorctl -c "$SUPERVISOR_CONFIG" start wan2gp || true
+  echo "Previous source commit restored: ${PREVIOUS_HEAD:-unknown}" >&2
+  echo "Any named git stash was preserved and was not automatically reapplied." >&2
+  exit "$exit_code"
 }
-trap 'error_handler $LINENO' ERR
+trap 'restore_previous_version $?' ERR
 
-echo "--- Starting Wan2GP Live Update ---"
+echo "--- Starting Wan2GP Safe Live Update ---"
+mkdir -p "$STATE_DIR/history"
+cd "$APP_DIR"
 
-PYTORCH_TRITON_VERSION="${PYTORCH_TRITON_VERSION:-$(python3 -c 'from importlib.metadata import version; print(version("pytorch-triton"))')}"
-PYTORCH_CU_INDEX_URL="${PYTORCH_CU_INDEX_URL:-https://download.pytorch.org/whl/nightly/cu128}"
-
-# Step 1: Ensure 'lsof' is available to find the process by port.
-# The base RunPod image may not include this tool.
-if ! command -v lsof &> /dev/null; then
-    echo "Installing lsof..."
-    # This requires root, which is the default in RunPod containers.
-    apt-get update && apt-get install -y --no-install-recommends lsof
+if [ ! -d .git ]; then
+  echo "ERROR: $APP_DIR is not a git checkout; refusing an unsafe update" >&2
+  exit 1
 fi
 
-# Step 2: Find and forcefully stop the current Wan2GP process.
-echo "Searching for process on port 7860..."
-PID_TO_KILL=$(lsof -t -i:7860 || true) # Use '|| true' to prevent exit on error if port is not in use
-if [ -n "$PID_TO_KILL" ]; then
-    echo "Found process with PID $PID_TO_KILL. Forcefully stopping it..."
-    kill -9 "$PID_TO_KILL"
+PREVIOUS_HEAD="$(git rev-parse HEAD)"
+PREVIOUS_FREEZE="$STATE_DIR/history/freeze-$TIMESTAMP.txt"
+"$VENV_DIR/bin/python" -m pip freeze > "$PREVIOUS_FREEZE"
+
+if [ -f "$STATE_DIR/requirements.filtered.txt" ]; then
+  PREVIOUS_STATE="$STATE_DIR/history/requirements-$TIMESTAMP.txt"
+  cp "$STATE_DIR/requirements.filtered.txt" "$PREVIOUS_STATE"
+fi
+if [ -f "$STATE_DIR/source-commit.txt" ]; then
+  PREVIOUS_SOURCE_STATE="$STATE_DIR/history/source-commit-$TIMESTAMP.txt"
+  cp "$STATE_DIR/source-commit.txt" "$PREVIOUS_SOURCE_STATE"
+fi
+
+supervisorctl -c "$SUPERVISOR_CONFIG" stop wan2gp
+
+if ! git diff --quiet || ! git diff --cached --quiet; then
+  STASH_NAME="wan2gp-live-update-$TIMESTAMP"
+  git stash push -m "$STASH_NAME"
+  echo "Tracked local changes preserved in git stash: $STASH_NAME"
+fi
+
+git fetch --prune origin main
+if git show-ref --verify --quiet refs/heads/main; then
+  git switch main
 else
-    echo "No process was running on port 7860."
+  git switch --create main --track origin/main
 fi
+git merge --ff-only origin/main
 
-# As a backup, kill any process matching the script name.
-pkill -9 -f wgp.py || echo "No 'wgp.py' process was found to kill."
-
-# Step 3: IMPORTANT - Temporarily rename the script to break the auto-restart loop.
-# The RunPod supervisor will try to restart the script. Renaming it prevents this.
-echo "Temporarily renaming wgp.py to prevent auto-restart..."
-if [ -f "/workspace/Wan2GP/wgp.py" ]; then
-    mv /workspace/Wan2GP/wgp.py /workspace/Wan2GP/wgp.py.bak
-    echo "Script renamed. Pausing for 3 seconds to ensure supervisor gives up."
-    sleep 3
-else
-    echo "wgp.py not found at /workspace/Wan2GP/, skipping rename."
-fi
-
-# Step 4: Navigate to the application directory and update the code from the 'main' branch.
-echo "Navigating to /workspace/Wan2GP and updating source code from 'main' branch..."
-cd /workspace/Wan2GP
-
-# Stash any local changes to prevent pull conflicts (e.g., from modified requirements.txt).
-echo "Stashing local changes to avoid conflicts..."
-git stash
-
-# The git repo is in a "detached HEAD" state. We switch to the 'main' branch to pull updates.
-git switch main
-git pull origin main
-echo "Successfully pulled latest code from the 'main' branch."
-
-# Restore custom finetune(s) baked into the image.
 CUSTOM_FINETUNE_SRC="/opt/wan2gp_source/finetunes/ltx2_distilled_old_vae.json"
-CUSTOM_FINETUNE_DST="/workspace/Wan2GP/finetunes/ltx2_distilled_old_vae.json"
+CUSTOM_FINETUNE_DST="$APP_DIR/finetunes/ltx2_distilled_old_vae.json"
 if [ -f "$CUSTOM_FINETUNE_SRC" ]; then
-    echo "Restoring custom finetune: ltx2_distilled_old_vae.json"
-    mkdir -p /workspace/Wan2GP/finetunes
-    cp "$CUSTOM_FINETUNE_SRC" "$CUSTOM_FINETUNE_DST"
-else
-    echo "Custom finetune source not found at $CUSTOM_FINETUNE_SRC, skipping."
+  mkdir -p "$(dirname "$CUSTOM_FINETUNE_DST")"
+  cp "$CUSTOM_FINETUNE_SRC" "$CUSTOM_FINETUNE_DST"
 fi
 
-# The updated 'wgp.py' is now in place. We can remove the backup file.
-if [ -f "/workspace/Wan2GP/wgp.py.bak" ]; then
-    rm /workspace/Wan2GP/wgp.py.bak
-fi
+CANDIDATE_REQUIREMENTS="$STATE_DIR/requirements.filtered.candidate.txt"
+"$VENV_DIR/bin/python" "$SUPPORT_DIR/filter-requirements.py" \
+  "$APP_DIR/requirements.txt" "$CANDIDATE_REQUIREMENTS"
 
-# Step 5: Update Python dependencies.
-# This follows the same logic as the original Dockerfile setup.
-echo "Updating Python dependencies from requirements.txt..."
-# Keep ORT aligned with CUDA 12.8.1 from the RunPod base image.
-sed -i \
-    -e '/ort-cuda-13-nightly/d' \
-    -e 's/^onnxruntime-gpu==[^;]*; python_version >= "3.11"/onnxruntime-gpu==1.22.0; python_version >= "3.11"/' \
-    -e 's/^torchcodec==.*/torchcodec==0.7.0/' \
-    -e 's/^torchcodec$/torchcodec==0.7.0/' \
-    -e 's/^torch>=/#torch>=/' \
-    -e 's/^torchvision>=/#torchvision>=/' \
-    requirements.txt
-python3 -m pip install --no-cache-dir -r requirements.txt
-python3 -m pip install --no-cache-dir gradio==5.35.0
-# Restore PyTorch's matching Triton package if a transitive dependency installed standalone triton.
-python3 -m pip uninstall -y triton || true
-rm -rf /usr/local/lib/python3.11/dist-packages/triton /usr/local/lib/python3.11/dist-packages/triton-*.dist-info
-echo "Restoring pytorch-triton $PYTORCH_TRITON_VERSION"
-python3 -m pip install --force-reinstall --no-cache-dir --index-url "$PYTORCH_CU_INDEX_URL" "pytorch-triton==$PYTORCH_TRITON_VERSION"
-python3 -c "import torch, triton; print(f'PyTorch {torch.__version__}; Triton {triton.__version__}')"
-if [ -n "${SAGEATTENTION_WHEEL_URL:-}" ]; then
-    python3 -m pip install --no-cache-dir "$SAGEATTENTION_WHEEL_URL"
-else
-    echo "SAGEATTENTION_WHEEL_URL not set; keeping existing SageAttention install."
-fi
-echo "Dependencies updated."
+uv pip install \
+  --python "$VENV_DIR/bin/python" \
+  --constraint "$SUPPORT_DIR/core-constraints.txt" \
+  --requirement "$CANDIDATE_REQUIREMENTS"
 
-# Step 6: Restart the Wan2GP application with the new code.
-# This uses the same command as the original start-wan2gp.sh script.
-echo "Restarting Wan2GP application in the background..."
-nohup python3 wgp.py --server-name 127.0.0.1 --server-port 7860 --save-masks > /workspace/wan2gp.log 2>&1 &
+"$VENV_DIR/bin/python" -m pip check
+"$VENV_DIR/bin/python" "$SUPPORT_DIR/validate-runtime.py"
+"$VENV_DIR/bin/python" -m compileall -q "$APP_DIR/wgp.py" "$APP_DIR/shared"
 
-echo ""
-echo "✅ --- Wan2GP Update Complete ---"
-echo "The application has been updated and restarted."
-echo "Monitor logs with: tail -f /workspace/wan2gp.log"
+mv "$CANDIDATE_REQUIREMENTS" "$STATE_DIR/requirements.filtered.txt"
+git rev-parse HEAD > "$STATE_DIR/source-commit.txt"
+UPDATE_COMMITTED=1
+
+"/usr/local/bin/restart-wan2gp.sh"
+
+trap - ERR
+echo
+echo "Wan2GP update complete: $PREVIOUS_HEAD -> $(git rev-parse HEAD)"
+echo "Core Torch/CUDA/attention packages remained pinned to the container image."
+echo "Any tracked local edits remain available in the named git stash."
