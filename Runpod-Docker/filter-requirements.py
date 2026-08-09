@@ -26,9 +26,10 @@ LOCKED = {
     "onnxruntime-gpu": Version("1.26.0"),
     "gradio": Version("5.35.0"),
     "decord2": Version("3.4.0"),
+    "hf-xet": Version("1.6.0"),
     "sageattention": Version("2.2.0"),
-    "spas-sage-attn": Version("0.1.0"),
 }
+EXCLUDED = {"spas-sage-attn"}
 REPLACEMENTS = {
     # The 2021 decord wheel falsely embeds a CPython 3.6 platform tag. Decord2
     # is the maintained API-compatible distribution with CPython 3.11 wheels.
@@ -63,6 +64,9 @@ def filter_requirements(source: Path, destination: Path, allow_mismatch: set[str
             continue
 
         name = canonicalize_name(requirement.name)
+        if name in EXCLUDED:
+            removed.append(f"line {line_number}: excluded optional package {requirement!s}")
+            continue
         if name in REPLACEMENTS:
             removed.append(f"line {line_number}: {requirement!s} -> {REPLACEMENTS[name]}")
             continue
