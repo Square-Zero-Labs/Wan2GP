@@ -5,6 +5,7 @@ on:
     branches:
       - main
       - docker
+      - overhaul-docker
       - update-8-7-2026
     tags:
       - "v*"
@@ -55,6 +56,7 @@ jobs:
           tags: |
             type=ref,event=branch
             type=ref,event=pr
+            type=sha,format=long
             type=semver,pattern={{version}}
             type=semver,pattern={{major}}.{{minor}}
             type=raw,value=latest,enable={{is_default_branch}}
@@ -68,5 +70,8 @@ jobs:
           push: ${{ github.event_name != 'pull_request' }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
+          build-args: |
+            SAGEATTENTION_WHEEL_SHA256=${{ vars.SAGEATTENTION_WHEEL_SHA256 || '9fa280f209779caefecf70dcbc368eb1514348e89cd6fcc3e92d50e37965ed65' }}
+            SPARGEATTN_WHEEL_SHA256=${{ vars.SPARGEATTN_WHEEL_SHA256 || '45121bcd834eeabc58032287e60ef48837ec9afebe39940e35796bbb9ec645a5' }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
