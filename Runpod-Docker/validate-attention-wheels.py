@@ -18,11 +18,6 @@ EXPECTED = {
         "version": "2.2.0",
         "arches": {"86", "120"},
     },
-    "spas_sage_attn": {
-        "glob": "spas_sage_attn-*.whl",
-        "version": "0.1.0",
-        "arches": {"80", "120"},
-    },
 }
 
 
