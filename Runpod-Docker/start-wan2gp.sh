@@ -34,9 +34,21 @@ fi
 
 WAN2GP_USERNAME="${WAN2GP_USERNAME:-admin}"
 WAN2GP_PASSWORD="${WAN2GP_PASSWORD:-gpuPoor2025}"
-htpasswd -cb /etc/nginx/.wan2gp-htpasswd "$WAN2GP_USERNAME" "$WAN2GP_PASSWORD" >/dev/null
-chown root:nogroup /etc/nginx/.wan2gp-htpasswd
-chmod 640 /etc/nginx/.wan2gp-htpasswd
+NGINX_WORKER_USER="www-data"
+NGINX_WORKER_GROUP="$(id -gn "$NGINX_WORKER_USER")"
+NGINX_AUTH_FILE="/etc/nginx/.wan2gp-htpasswd"
+
+PREVIOUS_UMASK="$(umask)"
+umask 027
+printf '%s\n' "$WAN2GP_PASSWORD" \
+  | htpasswd -ci "$NGINX_AUTH_FILE" "$WAN2GP_USERNAME" >/dev/null
+chown "root:$NGINX_WORKER_GROUP" "$NGINX_AUTH_FILE"
+chmod 0640 "$NGINX_AUTH_FILE"
+umask "$PREVIOUS_UMASK"
+if ! runuser -u "$NGINX_WORKER_USER" -- test -r "$NGINX_AUTH_FILE"; then
+  echo "ERROR: nginx worker cannot read $NGINX_AUTH_FILE" >&2
+  exit 1
+fi
 nginx -t
 
 if [ -z "${JUPYTER_PASSWORD:-}" ]; then
