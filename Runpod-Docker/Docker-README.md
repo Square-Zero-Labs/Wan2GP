@@ -12,7 +12,8 @@ This image runs Wan2GP on both NVIDIA A40 (`sm86`) and RTX 5090 (`sm120`) with a
 - ONNX Runtime GPU 1.26.0
 - Gradio 5.35.0
 - Decord2 3.4.0 (the maintained `decord` API for Python 3.11)
-- SageAttention 2.2.0 and SpargeAttention 0.1.0, installed from checksum-verified project wheels
+- hf-xet 1.6.0 with high-performance mode for accelerated Hugging Face model downloads
+- SageAttention 2.2.0, installed from a checksum-verified project wheel
 - Ubuntu FFmpeg and Jupyter Lab
 
 The base image intentionally omits the larger optional native-kernel stack: FlashAttention, Nunchaku, LightX2V, and precompiled GGUF kernels. Wan2GP's ordinary features and its Python GGUF support remain installed.
@@ -73,12 +74,12 @@ update-wan2gp.sh
 
 The updater stashes tracked local edits, fast-forwards upstream `main`, filters image-owned dependencies, validates the environment, and then restarts Wan2GP. On failure it restores the previous source commit and dependency snapshot. Untracked models, outputs, and configuration are not touched. Its compatible dependency manifest is persisted in `/workspace/.wan2gp-state` and reconciled after pod recreation.
 
-Core Torch, CUDA, Triton, ONNX, Sage, and Sparge versions never change during a live update; updating those requires a new container image.
+Core Torch, CUDA, Triton, ONNX, and Sage versions never change during a live update; updating those requires a new container image.
 
 ## Build
 
-The default build is pinned to the verified `8-8-2026` attention-wheel release
-and its two SHA-256 values:
+The default build is pinned to the verified `8-8-2026` SageAttention-wheel
+release and its SHA-256 value:
 
 ```bash
 docker build \
@@ -89,9 +90,9 @@ docker build \
 ```
 
 When advancing to a different wheel release, override the release tag, URLs, and
-hashes together. The GitHub workflow accepts optional repository variables named
-`SAGEATTENTION_WHEEL_SHA256` and `SPARGEATTN_WHEEL_SHA256`; otherwise it uses the
-verified release hashes committed in the workflow.
+hash together. The GitHub workflow accepts an optional repository variable named
+`SAGEATTENTION_WHEEL_SHA256`; otherwise it uses the verified release hash
+committed in the workflow.
 
 ## Acceptance tests
 
@@ -106,7 +107,7 @@ jupyter server list
 restart-wan2gp.sh
 ```
 
-The unauthenticated request must return `401`; the authenticated request must reach Gradio. Also run one small Sage2 generation and a short FlashVSR/Sparge upscale on each GPU before merging `overhaul-docker` into `docker`.
+The unauthenticated request must return `401`; the authenticated request must reach Gradio. Also run one small Sage2 generation and a short FlashVSR upscale with its bundled Triton backend on each GPU before merging `overhaul-docker` into `docker`.
 
 ## Persistent paths
 
