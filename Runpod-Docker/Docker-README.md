@@ -1,448 +1,117 @@
-# Wan2GP Docker Setup
+# Wan2GP RunPod image
 
-This repository includes automated Docker image building and deployment for RunPod.
+This image runs Wan2GP on both NVIDIA A40 (`sm86`) and RTX 5090 (`sm120`) with a single CUDA 12.8 stack. It preserves RunPod SSH, web terminal, nginx, and Jupyter services while keeping build tools and nvcc out of the runtime image.
 
-## Quick Start (RunPod)
+## Runtime stack
 
-Use our pre-built Docker image directly on RunPod:
+- Ubuntu 24.04 RunPod service base
+- Python 3.11
+- PyTorch 2.10.0 + CUDA 12.8
+- torchvision 0.25.0, torchaudio 2.10.0, TorchCodec 0.10.0
+- Triton 3.6.0
+- ONNX Runtime GPU 1.26.0
+- Gradio 5.35.0
+- Decord2 3.4.0 (the maintained `decord` API for Python 3.11)
+- SageAttention 2.2.0 and SpargeAttention 0.1.0, installed from checksum-verified project wheels
+- Ubuntu FFmpeg and Jupyter Lab
 
-**Container Image**: `ghcr.io/square-zero-labs/wan2gp:latest`
+The base image intentionally omits the larger optional native-kernel stack: FlashAttention, Nunchaku, LightX2V, and precompiled GGUF kernels. Wan2GP's ordinary features and its Python GGUF support remain installed.
 
-The image will automatically:
+## Image tags
 
-- Set up the complete Wan2GP environment
-- Install all dependencies (PyTorch, CUDA, FFmpeg, etc.)
-- **Start password-protected Gradio interface on port 7862 (proxy to internal 7860)**
-- Start Jupyter Lab on port 8888 (get token with `ps aux | grep jupyter`)
-- Use `/workspace` as the working directory
+- `ghcr.io/square-zero-labs/wan2gp:overhaul-docker` — modernization candidate
+- `ghcr.io/square-zero-labs/wan2gp:docker` — deployment branch after acceptance
+- `ghcr.io/square-zero-labs/wan2gp:sha-<commit>` — immutable rollback image
 
-## 🔒 Authentication
+Do not promote the candidate until the A40 and RTX 5090 acceptance tests pass.
 
-Your Wan2GP deployment includes automatic password protection:
+## RunPod configuration
 
-**Default Login:**
+- Container disk: 50 GB or more
+- Persistent volume: 75 GB or more
+- Volume mount: `/workspace`
+- HTTP ports: `7862,8888`
+- Host driver: R570 or newer. CUDA 12.8 does not require an R580 driver.
+
+Wan2GP listens only on `127.0.0.1:7860`. Nginx exposes it with Basic Auth on port 7862; do not expose 7860 directly.
+
+Default login:
 
 - Username: `admin`
 - Password: `gpuPoor2025`
 
-**Custom Password (Optional):**
-Set environment variables when running:
+Set `WAN2GP_USERNAME` and `WAN2GP_PASSWORD` in the RunPod template to override both values.
+
+Jupyter listens on port 8888. The container generates a random token unless `JUPYTER_PASSWORD` is set. Retrieve the active token from a web terminal or SSH session:
 
 ```bash
-docker run --gpus all -p 7862:7862 \
-  -e WAN2GP_PASSWORD="your_secure_password" \
-  -e WAN2GP_USERNAME="your_username" \
-  ghcr.io/square-zero-labs/wan2gp:latest
+jupyter server list
 ```
 
-## GitHub Container Registry
+The default Jupyter interpreter and the `Wan2GP (Python 3.11)` kernel use the same environment as Wan2GP.
 
-The Docker image is automatically built and pushed to GitHub Container Registry (GHCR) when code is pushed to the `main` or `docker` branches.
+## Operations
 
-### Available Tags
-
-- `latest` - Latest build from main branch
-- `docker` - Latest build from docker branch
-- `v*` - Specific version tags
-- `main` - Latest from main branch
-
-## Building Locally
-
-### Prerequisites
-
-- Docker installed
-- Git
-
-### Build Command
+Application and Supervisor logs are persistent:
 
 ```bash
-# Clone the repository
-git clone https://github.com/Square-Zero-Labs/Wan2GP.git
-cd Wan2GP
-
-# Build the Docker image
-docker build -t wan2gp:local .
-```
-
-### Running Locally
-
-```bash
-# Run with GPU support (requires nvidia-docker)
-docker run --gpus all -p 7862:7862 -p 8888:8888 wan2gp:local
-
-# Run without GPU (CPU only)
-docker run -p 7862:7862 -p 8888:8888 wan2gp:local
-```
-
-## RunPod Template Configuration
-
-### Custom Template Settings
-
-Create a new RunPod template with these settings:
-
-- **Template Name**: Wan2GP
-- **Container Image**: `ghcr.io/square-zero-labs/wan2gp:latest`
-- **Container Disk**: 50 GB (for OS and applications)
-- **Volume Storage**: 75 GB minimum (for models and outputs)
-- **Expose HTTP Ports**: `7862,8888`
-- **Volume Mount Path**: `/workspace` (recommended for persistence)
-
-### What You Get
-
-- **Wan2GP Application**: Available on port 7862 (password protected)
-- **Jupyter Lab**: Available on port 8888 (get token with `ps aux | grep jupyter`)
-- **SSH Access**: Standard RunPod SSH functionality
-- **File Persistence**: Files saved to `/workspace` persist across restarts
-
-### Authentication Setup
-
-The container automatically integrates with RunPod's nginx infrastructure:
-
-- **External Access**: Port 7862 with login required (RunPod's proxy + auth)
-- **Internal Application**: Runs on port 7860 (behind authenticated proxy)
-- **No Code Changes**: wgp.py runs normally, nginx handles security
-- **Fail-Safe**: Container build fails if RunPod infrastructure changes
-
-**Login Credentials:**
-
-- Default: `admin` / `gpuPoor2025`
-- Custom: Set `WAN2GP_USERNAME` and `WAN2GP_PASSWORD` environment variables
-
-**Important:** Always access via port **7862** for authentication. Port 7860 is internal-only and not exposed.
-
-#### Architecture Flow
-
-```
-Internet → Port 7862 (nginx + auth) → Port 7860 (Gradio internal)
-```
-
-- **Port 7862**: Public access point with authentication (exposed)
-- **Port 7860**: Internal Gradio application (not exposed)
-
-### Environment Variables (Optional)
-
-You can customize the deployment with these environment variables:
-
-- `SERVER_NAME`: Default is `0.0.0.0`
-- `SERVER_PORT`: Default is `7860`
-- `WAN2GP_USERNAME`: Auth username (default: `admin`)
-- `WAN2GP_PASSWORD`: Auth password (default: `gpuPoor2025`)
-
-## Checking Logs and Status
-
-### View Wan2GP Application Logs
-
-```bash
-# Tail the main application logs
 tail -f /workspace/wan2gp.log
-
-# View all logs at once
-cat /workspace/wan2gp.log
+supervisorctl -c /etc/supervisor/wan2gp.conf status
 ```
 
-### Check Running Services
+Restart only the Wan2GP process and wait for its health check:
 
 ```bash
-# Check if Wan2GP is running
-ps aux | grep wgp.py
-
-# Check if Jupyter Lab is running
-ps aux | grep jupyter
-
-# Check all Python processes
-ps aux | grep python
+restart-wan2gp.sh
 ```
 
-### Debug Startup Issues
+Apply a compatible upstream live update:
 
 ```bash
-# Check container startup messages
-docker logs <container_id>
-
-# Or within the container, check the application directory
-ls -la /workspace/Wan2GP/
-
-# Check if application files were restored properly
-ls -la /opt/wan2gp_source/
+update-wan2gp.sh
 ```
 
-### Network and Ports
+The updater stashes tracked local edits, fast-forwards upstream `main`, filters image-owned dependencies, validates the environment, and then restarts Wan2GP. On failure it restores the previous source commit and dependency snapshot. Untracked models, outputs, and configuration are not touched. Its compatible dependency manifest is persisted in `/workspace/.wan2gp-state` and reconciled after pod recreation.
+
+Core Torch, CUDA, Triton, ONNX, Sage, and Sparge versions never change during a live update; updating those requires a new container image.
+
+## Build
+
+The default build is pinned to the verified `8-8-2026` attention-wheel release
+and its two SHA-256 values:
 
 ```bash
-# Check what's listening on our ports
-netstat -tlnp | grep :7860
-netstat -tlnp | grep :8888
-
-# Test if services are responding
-curl -s http://localhost:7860 | head
-curl -s http://localhost:8888 | head
+docker build \
+  --platform linux/amd64 \
+  --file Runpod-Docker/Dockerfile \
+  --tag wan2gp:local \
+  .
 ```
 
-## Image Details
+When advancing to a different wheel release, override the release tag, URLs, and
+hashes together. The GitHub workflow accepts optional repository variables named
+`SAGEATTENTION_WHEEL_SHA256` and `SPARGEATTN_WHEEL_SHA256`; otherwise it uses the
+verified release hashes committed in the workflow.
 
-### Base Image
+## Acceptance tests
 
-- **RunPod PyTorch Base**: `runpod/pytorch:2.8.0-py3.11-cuda12.8.1-cudnn-devel-ubuntu22.04`
-- **PyTorch**: 2.8.0 with CUDA 12.8.1 and Python 3.11
-- **OS**: Ubuntu 22.04 LTS with full RunPod infrastructure compatibility
-- **Includes**: Jupyter Lab, code-server, runpodctl, and other RunPod tools
-
-### Included Software
-
-- **Python**: 3.11 with pip
-- **PyTorch**: 2.8.0 with CUDA 12.8.1 support (pre-installed, not reinstalled)
-- **FFmpeg**: For video processing
-- **tmux**: For session management
-- **rsync**: For reliable file operations
-- **build-essential**: For compiling native extensions
-- All Python dependencies from requirements.txt
-- **Gradio**: 5.35.0 (upgraded from requirements.txt version)
-- **SageAttention**: 2.x installed from prebuilt wheel for A40 and RTX 5090 support
-
-### Working Directory Structure
-
-- `/workspace/Wan2GP/` - Main application directory (persistent if volume mounted)
-- `/opt/wan2gp_source/` - Backup copy of application (built into image)
-- `/workspace/wan2gp.log` - Application logs
-- Ports 7862 (authenticated Gradio proxy) and 8888 (Jupyter Lab) exposed
-
-### Startup Process
-
-1. **File Restoration**: If `/workspace/Wan2GP/wgp.py` doesn't exist, copies from `/opt/wan2gp_source/`
-2. **Wan2GP Launch**: Starts `python3 wgp.py --server-name 0.0.0.0` in background
-3. **RunPod Services**: Chains to `/start.sh` to start Jupyter Lab and other RunPod services
-4. **Result**: Both services running simultaneously (Jupyter with auto-generated token)
-
-## Automatic Builds
-
-The GitHub Actions workflow (`.github/workflows/docker-build.yml`) automatically:
-
-1. **Triggers on**:
-
-   - Push to `main` branch
-   - Push to `docker` branch
-   - Git tags starting with `v`
-
-2. **Build Process**:
-
-   - Checks out the repository
-   - Frees up runner disk space (prevents build failures)
-   - Sets up Docker Buildx with container driver
-   - Logs into GitHub Container Registry
-   - Builds the Docker image for linux/amd64
-   - Pushes to GHCR
-   - Uses GitHub Actions cache for faster builds
-
-3. **Registry**: GitHub Container Registry (ghcr.io)
-
-4. **Space Optimization**:
-   - Comments out torch/torchvision in requirements.txt (uses pre-installed versions)
-   - Aggressive cleanup during GitHub Actions build process
-
-## Customization
-
-### Modifying the Dockerfile
-
-The `Dockerfile` includes:
-
-- System dependencies installation
-- Repository cloning at specific commit (`597d26b7e0e53550f57a9973c5d6a1937b2e1a7b`)
-- Python package installation with torch/torchvision skip
-- Triton verification from the RunPod PyTorch base image
-- SageAttention 2.x installs from the pinned Wan2GP-Runpod-Wheels GitHub Release URL in the Dockerfile
-
-Pinned wheel release:
-
-```text
-https://github.com/Square-Zero-Labs/Wan2GP-Runpod-Wheels/releases/tag/runpod-pytorch2.8.0-cu128-py311-sm86-sm120-v1
-```
-
-Dockerfile wheel URL:
-
-```text
-https://github.com/Square-Zero-Labs/Wan2GP-Runpod-Wheels/releases/download/runpod-pytorch2.8.0-cu128-py311-sm86-sm120-v1/sageattention-2.2.0-cp311-cp311-linux_x86_64.whl
-```
-
-Sparge Attention is intentionally not installed in this image. FlashVSR should use Triton Sparse Attention, but FlashVSR may not work on RTX 5090 because the bundled Triton sparse attention kernel can fail to compile on Blackwell / `sm120`.
-- Startup script setup and permissions
-- Port exposure
-
-To customize:
-
-1. Edit the `Dockerfile`
-2. Commit and push to `docker` branch for testing
-3. Merge to `main` for production
-4. New image will be available at `ghcr.io/square-zero-labs/wan2gp:latest`
-
-### Using Different Base Images
-
-To use a different base image (e.g., different CUDA version):
-
-1. Modify the `FROM` line in `Dockerfile`
-2. Update the `sed` command if torch/torchvision versions change
-3. Update package versions in requirements.txt as needed
-4. Test locally before pushing
-
-### Modifying Startup Behavior
-
-Edit `start-wan2gp.sh` to customize:
-
-- Application startup parameters
-- Environment setup
-- Service integration
-- Logging configuration
-
-## Troubleshooting
-
-### Build Issues
-
-**Disk Space Errors**:
-
-- GitHub Actions includes disk cleanup step
-- Locally: `docker system prune -af` to free space
-
-**Package Installation Failures**:
-
-- Check that torch/torchvision are properly commented out in requirements.txt
-- Verify base image compatibility
-
-**Git Clone Issues**:
-
-- Ensure the commit hash in Dockerfile exists
-- Check repository access permissions
-
-### Runtime Issues
-
-**Application Won't Start**:
+Run these on both an A40 and RTX 5090 candidate pod:
 
 ```bash
-# Check application logs
-cat /workspace/wan2gp.log
-
-# Check if files were restored
-ls -la /workspace/Wan2GP/
-
-# Manually test the application
-cd /workspace/Wan2GP && python3 wgp.py --help
+python /opt/wan2gp-container/validate-runtime.py
+python /opt/wan2gp-container/validate-gpu.py
+curl -I http://127.0.0.1:7862/
+curl -u admin:gpuPoor2025 -I http://127.0.0.1:7862/
+jupyter server list
+restart-wan2gp.sh
 ```
 
-**Port Access Issues**:
+The unauthenticated request must return `401`; the authenticated request must reach Gradio. Also run one small Sage2 generation and a short FlashVSR/Sparge upscale on each GPU before merging `overhaul-docker` into `docker`.
 
-```bash
-# Check if ports are exposed
-docker port <container_id>
+## Persistent paths
 
-# Check if services are binding correctly
-netstat -tlnp | grep -E ':(7860|8888)'
-```
-
-**Jupyter Lab Access**:
-
-```bash
-# Get the Jupyter Lab token from the running process
-ps aux | grep jupyter
-
-# Look for --ServerApp.token=XXXXXX in the output
-# Use that token to log into Jupyter Lab on port 8888
-# Example: if you see --ServerApp.token=oj77savqc51ysev68yfq
-# then use "oj77savqc51ysev68yfq" as your login token
-```
-
-**Volume Mount Issues**:
-
-- Ensure RunPod template has `/workspace` volume mount configured
-- Check that files persist after container restart
-
-### Registry Access
-
-- Image is public and should not require authentication
-- For private repositories, ensure proper GitHub permissions
-- Use `docker pull ghcr.io/square-zero-labs/wan2gp:latest` to test access
-
-### Performance Issues
-
-**GPU Not Detected**:
-
-```bash
-# Check CUDA availability
-python3 -c "import torch; print(torch.cuda.is_available())"
-python3 -c "import torch; print(torch.cuda.device_count())"
-```
-
-**Memory Issues**:
-
-```bash
-# Check system resources
-free -h
-nvidia-smi
-```
-
-## Development Workflow
-
-1. **Local Development**:
-
-   ```bash
-   # Test changes locally
-   docker build -t wan2gp:test .
-   docker run --rm -p 7862:7862 -p 8888:8888 wan2gp:test
-   ```
-
-2. **Testing**:
-
-   - Push to `docker` branch for CI testing
-   - Check GitHub Actions logs for build success
-   - Test deployed image on RunPod
-
-3. **Production Release**:
-
-   - Merge to `main` for production release
-   - Tag with `v*` for versioned releases
-   - Monitor logs for any deployment issues
-
-4. **Debugging Builds**:
-
-   ```bash
-   # Check GitHub Actions logs
-   # View build process in repository Actions tab
-
-   # Test locally if build fails
-   docker build --progress=plain -t debug .
-   ```
-
-## Security
-
-- **Images**: Built from source code in this repository
-- **Base Images**: Official RunPod/NVIDIA CUDA images
-- **Secrets**: No secrets or credentials included in images
-- **Permissions**: GitHub Actions uses minimal required permissions
-- **Network**: Only necessary ports (7862, 8888) exposed
-
-## Support
-
-For issues related to:
-
-- **Docker Setup**: Check this README and GitHub Issues
-- **Wan2GP Application**: See main project documentation
-- **RunPod Platform**: Contact RunPod support
-- **Build Failures**: Check GitHub Actions logs and this troubleshooting section
-
-## Log Files
-
-All service logs are saved to the persistent `/workspace` directory:
-
-- **Wan2GP Application**: `/workspace/wan2gp.log`
-- **Jupyter Lab**: Check with `ps aux | grep jupyter` for token
-- **Container Startup**: Visible in Docker logs
-
-### Viewing Logs
-
-```bash
-# View Wan2GP logs
-tail -f /workspace/wan2gp.log
-
-# View last 100 lines
-tail -n 100 /workspace/wan2gp.log
-
-# Monitor for errors
-grep -i error /workspace/wan2gp.log
-```
+- `/workspace/Wan2GP` — live application checkout
+- `/workspace/.wan2gp-state` — live-update state and history
+- `/workspace/wan2gp.log` — application log
+- `/opt/wan2gp_source` — immutable image seed used on a fresh volume
+- `/opt/wan2gp-venv` — image-owned Python environment
