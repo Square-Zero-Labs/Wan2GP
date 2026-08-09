@@ -70,3 +70,4 @@ postprocessing/seedvc/
 !.github/workflows/
 !.github/workflows/manager-catalog.yml
 *.log
+.devcontainer/
