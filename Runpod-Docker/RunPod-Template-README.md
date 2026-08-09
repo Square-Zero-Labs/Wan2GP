@@ -1,11 +1,11 @@
 # Wan2GP - AI Image and Video Generation Template
 
-#### Last Updated on 8/7/2026 to WanGP v12.434, Cache Me If You Can + LoRA updates
+#### Last Updated on 8/9/2026 to WanGP v12.434 with PyTorch 2.10 / CUDA 12.8 support
 
-### _This template has been tested with an A40_
+### _This version targets both A40 and RTX 5090 GPUs_
 
-- RTX 5090 is supported by the prebuilt SageAttention 2.x wheel for video generation.
-- FlashVSR may not work on RTX 5090 with this template because its bundled Triton sparse attention kernel can fail to compile on Blackwell / `sm120`.
+- Python 3.11, PyTorch 2.10, and CUDA 12.8 are installed in the container.
+- Prebuilt SageAttention 2.2 and SpargeAttention 0.1 wheels include the native targets needed by both GPUs.
 
 ## What is Wan2GP?
 
@@ -13,19 +13,19 @@ WAN2GP (aka "Wan for the GPU Poor") is a free, open-source tool that lets you ge
 
 ## What This Template Provides
 
-This template is an extenstion of the official Runpod Pytorch 2.8.0 template. It gives you a fully configured environment with:
+This template uses a lean RunPod Ubuntu 24.04 service base with a pinned CUDA 12.8 / PyTorch 2.10 environment. It gives you a fully configured environment with:
 
 - ✅ **Wan2GP Application** - Ready to use on port 7862 (password protected)
 - ✅ **Jupyter Lab** - Development environment on port 8888
-- ✅ **All Dependencies** - PyTorch, Triton, FFmpeg, Sage Attention, and required python libraries pre-installed
+- ✅ **All Dependencies** - PyTorch, Triton, FFmpeg, ONNX Runtime GPU, SageAttention, SpargeAttention, and required python libraries pre-installed
 - ✅ **Storage** - Your models and outputs saved to `/workspace`
 
 ## Quick Start
 
 ### 1. Launch Your Pod/Selecting GPU
 
-- **CUDA Version**: Make sure you use a machine that has **CUDA 12.8** installed (use additional filters when selecting machine)
-- **Recommended GPU**: This template was tested with an A40
+- **NVIDIA Driver**: Select a machine with an **R570 or newer** NVIDIA driver. CUDA 12.8 is supplied by the container, so the host does not need a separate CUDA 12.8 toolkit.
+- **Supported GPUs**: A40 and RTX 5090
 
 ### 2. Wait for Startup (Important!)
 
@@ -88,7 +88,7 @@ tail -f /workspace/wan2gp.log
 
 ### Running on RTX 5090
 
-SageAttention 2.x is installed from a wheel with RTX 5090 / Blackwell support for video generation. If an attention mode fails on a specific model, switch to Scale Dot Product Attention. FlashVSR may not work on RTX 5090 with this template because its bundled Triton Sparse Attention kernel can fail during compilation on Blackwell / `sm120`.
+SageAttention 2.2 and SpargeAttention 0.1 are installed from wheels built for the PyTorch 2.10 / CUDA 12.8 stack with RTX 5090 / Blackwell support. If an attention mode fails on a specific model, switch to Scale Dot Product Attention.
 
 1. Open the Wan2GP UI and go to the Configuration tab.
 2. Find the Attention Type setting.
@@ -101,9 +101,9 @@ If you want to update the Wan2GP application to the latest version of Wan2GP wit
 
 > 🛑 **DANGER: This is an advanced feature and can break your pod.**
 >
-> - **No Automatic Rollback:** If the update fails or introduces bugs, there is no automatic way to go back. Your pod may become unusable.
+> - **Automatic Validation and Rollback:** The script validates a new version before restarting Wan2GP and restores the previous source and dependencies if the update fails. Model compatibility problems can still appear after validation.
 > - **Untested Code:** You are pulling the latest code from the Wan2GP repository, which has not been tested in this specific environment. It may have new dependencies or bugs that cause the application to fail.
-> - **Restarting Pod:** If you stop and restart your pod after updating, you should run the update script again on restart. Otherwise, you could have mismatched python dependency versions.
+> - **Restarting Pod:** Compatible live-update dependencies are recorded under `/workspace` and reconciled when the pod restarts. Core CUDA, PyTorch, Triton, ONNX, and attention packages remain pinned to the container image.
 
 To run the live update:
 
@@ -112,7 +112,7 @@ To run the live update:
     ```bash
     update-wan2gp.sh
     ```
-3.  The script will stop the application, download the latest code, update dependencies, and restart the service. This may take a minute.
+3.  The script will stop the application, download the latest code, update compatible dependencies, validate the result, and restart the service. If validation fails, it restores the previous version.
 4.  You can monitor the progress in the terminal and check the application log once it's complete: `tail -f /workspace/wan2gp.log`
 
 ## Walkthroughs and Tutorials

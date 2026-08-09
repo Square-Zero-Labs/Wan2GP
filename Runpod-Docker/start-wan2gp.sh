@@ -1,103 +1,63 @@
 #!/bin/bash
-set -e
+set -Eeuo pipefail
+
+APP_DIR="/workspace/Wan2GP"
+SOURCE_DIR="/opt/wan2gp_source"
+STATE_DIR="/workspace/.wan2gp-state"
+VENV_DIR="/opt/wan2gp-venv"
+CONTAINER_SUPPORT_DIR="/opt/wan2gp-container"
 
 echo "=== Wan2GP Container Startup ==="
 
-# Restore application files if needed (handles volume mount scenario)
-if [ ! -f "/workspace/Wan2GP/wgp.py" ]; then
-    echo "Restoring application files..."
-    mkdir -p /workspace/Wan2GP
-    rsync -a /opt/wan2gp_source/ /workspace/Wan2GP/
-    echo "Application files restored"
+if [ ! -f "$APP_DIR/wgp.py" ]; then
+  echo "Restoring Wan2GP application files..."
+  mkdir -p "$APP_DIR"
+  rsync -a "$SOURCE_DIR/" "$APP_DIR/"
 else
-    echo "Application files already present"
+  echo "Using existing Wan2GP application files in $APP_DIR"
 fi
 
-# Set up nginx authentication using RunPod's existing infrastructure
-echo "Setting up authentication..."
-PASSWORD=${WAN2GP_PASSWORD:-"gpuPoor2025"}
-USERNAME=${WAN2GP_USERNAME:-"admin"}
+mkdir -p "$STATE_DIR"
 
-# Verify required tools are available
-if ! command -v htpasswd &> /dev/null; then
-    echo "❌ ERROR: htpasswd command not found (apache2-utils not installed)"
-    exit 1
+# A live update is stored on the persistent volume while the Python environment
+# lives on the replaceable container disk. Reapply its compatible non-core
+# requirements whenever a new container is created for the same volume.
+if [ -f "$STATE_DIR/requirements.filtered.txt" ]; then
+  echo "Reconciling dependencies for the persisted live update..."
+  uv pip install \
+    --python "$VENV_DIR/bin/python" \
+    --constraint "$CONTAINER_SUPPORT_DIR/core-constraints.txt" \
+    --requirement "$STATE_DIR/requirements.filtered.txt"
 fi
 
-if ! command -v nginx &> /dev/null; then
-    echo "❌ ERROR: nginx command not found"
-    echo "RunPod base image may have changed - nginx CLI tools not available"
-    exit 1
-fi
+"$VENV_DIR/bin/python" "$CONTAINER_SUPPORT_DIR/validate-runtime.py"
 
-# Create password file
-htpasswd -cb /etc/nginx/.htpasswd "$USERNAME" "$PASSWORD"
+WAN2GP_USERNAME="${WAN2GP_USERNAME:-admin}"
+WAN2GP_PASSWORD="${WAN2GP_PASSWORD:-gpuPoor2025}"
+htpasswd -cb /etc/nginx/.wan2gp-htpasswd "$WAN2GP_USERNAME" "$WAN2GP_PASSWORD" >/dev/null
+chown root:nogroup /etc/nginx/.wan2gp-htpasswd
+chmod 640 /etc/nginx/.wan2gp-htpasswd
+nginx -t
 
-# Create our own reliable nginx authentication proxy
-echo "Setting up authenticated nginx proxy..."
-cat > /etc/nginx/conf.d/wan2gp-auth.conf << 'EOF'
-# Wan2GP Authentication Proxy
-server {
-    listen 7862;
-    
-    location / {
-        auth_basic "Wan2GP Access Required";
-        auth_basic_user_file /etc/nginx/.htpasswd;
-        
-        proxy_pass http://localhost:7860;
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
-        
-        # WebSocket support for Gradio
-        proxy_http_version 1.1;
-        proxy_set_header Upgrade $http_upgrade;
-        proxy_set_header Connection "upgrade";
-    }
-}
-EOF
-
-# Ensure the main nginx config includes our proxy config from the conf.d directory
-if ! grep -q "include /etc/nginx/conf.d/.*.conf;" /etc/nginx/nginx.conf; then
-    echo "Adding 'include' for conf.d to nginx.conf..."
-    sed -i '/http {/a \    include /etc/nginx/conf.d/*.conf;' /etc/nginx/nginx.conf
-fi
-
-# Test nginx config
-if ! nginx -t 2>/dev/null; then
-    echo "❌ ERROR: nginx configuration test failed"
-    echo "Unable to create authentication proxy"
-    exit 1
-fi
-
-
-echo "✅ Authentication proxy configured - Username: $USERNAME, Password: $PASSWORD"
-echo "🌐 Access via port 7862 with authentication"
-WAN2GP_ACCESS_PORT=7862
-
-# Start our application in the background
-echo "Starting Wan2GP application in background..."
-cd /workspace/Wan2GP
-
-# Use our own nginx proxy: 7862 (nginx with auth) → 7860 (gradio)
-SERVER_NAME="127.0.0.1"
-SERVER_PORT="7860"
-echo "Using our nginx proxy: nginx on 7862 → gradio on 7860"
-
-echo "Starting Wan2GP on $SERVER_NAME:$SERVER_PORT"
-nohup python3 wgp.py --server-name $SERVER_NAME --server-port $SERVER_PORT --save-masks > /workspace/wan2gp.log 2>&1 &
-echo "Wan2GP started on internal port $SERVER_PORT, logs in /workspace/wan2gp.log"
-echo ""
-echo "🔐 AUTHENTICATION REQUIRED:"
-echo "   Username: $USERNAME"
-echo "   Password: $PASSWORD"
-echo ""
-
-echo "Starting RunPod services..."
-if [ -f "/start.sh" ]; then
-    /start.sh
+if [ -z "${JUPYTER_PASSWORD:-}" ]; then
+  JUPYTER_PASSWORD="$(openssl rand -hex 24)"
+  export JUPYTER_PASSWORD
+  echo "Jupyter token generated. Retrieve it with: jupyter server list"
 else
-    echo "No /start.sh found, keeping container alive by monitoring log for debugging."
-    tail -f /workspace/wan2gp.log
-fi 
+  echo "Using the configured JUPYTER_PASSWORD token."
+fi
+
+echo "Wan2GP login user: $WAN2GP_USERNAME"
+echo "Authenticated Wan2GP endpoint: port 7862"
+
+# RunPod's service launcher owns nginx, Jupyter, SSH, and web-terminal setup.
+# Supervisor remains PID 1 and owns the Wan2GP application lifecycle.
+/start.sh &
+RUNPOD_SERVICES_PID=$!
+sleep 2
+if ! kill -0 "$RUNPOD_SERVICES_PID" 2>/dev/null; then
+  echo "ERROR: RunPod services failed during startup" >&2
+  wait "$RUNPOD_SERVICES_PID"
+fi
+
+exec /usr/bin/supervisord -n -c /etc/supervisor/wan2gp.conf
