@@ -101,7 +101,6 @@ If you want to update the Wan2GP application to the latest version of Wan2GP wit
 
 > 🛑 **DANGER: This is an advanced feature and can break your pod.**
 >
-> - **Automatic Validation and Rollback:** The script validates a new version before restarting Wan2GP and restores the previous source and dependencies if the update fails. Model compatibility problems can still appear after validation.
 > - **Untested Code:** You are pulling the latest code from the Wan2GP repository, which has not been tested in this specific environment. It may have new dependencies or bugs that cause the application to fail.
 > - **Restarting Pod:** Compatible live-update dependencies are recorded under `/workspace` and reconciled when the pod restarts. Core CUDA, PyTorch, Triton, ONNX, and attention packages remain pinned to the container image.
 
