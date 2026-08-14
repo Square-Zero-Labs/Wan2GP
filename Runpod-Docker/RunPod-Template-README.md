@@ -1,6 +1,6 @@
 # Wan2GP - AI Image and Video Generation Template
 
-#### Last Updated on 8/10/2026 to WanGP v12.452 SCAIL 2 Update
+#### Last Updated on 8/14/2026 to WanGP v12.52, Jess is Back !
 
 ### _This version targets both A40 and RTX 5090 GPUs_
 
