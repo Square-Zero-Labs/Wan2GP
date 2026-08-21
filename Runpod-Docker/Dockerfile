@@ -5,7 +5,7 @@
 # release artifacts, so no compiler or CUDA toolkit is copied into the runtime.
 FROM runpod/base:1.1.0-cuda1281-ubuntu2404@sha256:f9879c67c7da08d2f7e3c8bfa5ec5f6104ad9aa8577a93a095fc4bc2bd902112 AS dependencies
 
-ARG WAN2GP_REF=7f06022de44538c66fa461645952d7df9d763575
+ARG WAN2GP_REF=238e25fa222a254fc5d29e34319ce0231263a8f5
 
 ENV DEBIAN_FRONTEND=noninteractive \
     PIP_DISABLE_PIP_VERSION_CHECK=1 \
