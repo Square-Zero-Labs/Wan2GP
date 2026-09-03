@@ -1,6 +1,6 @@
 # Wan2GP - AI Image and Video Generation Template
 
-#### Last Updated on 8/23/2026 to WanGP v12.64, Twice the Phase, Half the Trouble
+#### Last Updated on 9/3/2026 to WanGP 12.645: H3 PDD LoRA Acceleration
 
 ### _This version targets both A40 and RTX 5090 GPUs_
 
