@@ -1,6 +1,6 @@
 # Wan2GP - AI Image and Video Generation Template
 
-#### Last Updated on 9/4/2026 to WanGP 12.7: Power Up, Polish, Pause
+#### Last Updated on 9/6/2026 to WanGP v12.72\*: H3 Outpainting, Viggle Animate
 
 ### _This version targets both A40 and RTX 5090 GPUs_
 
