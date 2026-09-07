@@ -1,0 +1,12 @@
+# GPU/runtime stack owned by the container image. Live updates must not replace
+# these packages; a new image and new attention wheels are required instead.
+torch==2.10.0
+torchvision==0.25.0
+torchaudio==2.10.0
+torchcodec==0.10.0
+triton==3.6.0
+onnxruntime-gpu==1.26.0
+gradio==5.35.0
+decord2==3.4.0
+hf-xet==1.6.0
+sageattention==2.2.0
