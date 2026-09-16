@@ -1,11 +1,13 @@
 # syntax=docker/dockerfile:1.7
 
+ARG WAN2GP_REF=09a6c1dad469fc3a2dc7577b9ab0a08254be9ad2
+
 # The build image supplies nvcc-compatible CUDA headers when assembling the
 # Python environment. Native attention extensions are downloaded as verified
 # release artifacts, so no compiler or CUDA toolkit is copied into the runtime.
 FROM runpod/base:1.1.0-cuda1281-ubuntu2404@sha256:f9879c67c7da08d2f7e3c8bfa5ec5f6104ad9aa8577a93a095fc4bc2bd902112 AS dependencies
 
-ARG WAN2GP_REF=09a6c1dad469fc3a2dc7577b9ab0a08254be9ad2
+ARG WAN2GP_REF
 
 ENV DEBIAN_FRONTEND=noninteractive \
     PIP_DISABLE_PIP_VERSION_CHECK=1 \
@@ -38,6 +40,7 @@ RUN apt-get update \
     && rm -rf /var/lib/apt/lists/*
 
 COPY Runpod-Docker/core-constraints.txt /opt/wan2gp-container/core-constraints.txt
+COPY Runpod-Docker/web-runtime-constraints.txt /opt/wan2gp-container/web-runtime-constraints.txt
 
 # Install the image-owned CUDA stack first. PyTorch 2.10's cu128 wheel pins its
 # matching Triton 3.6 runtime; constraints prevent upstream requirements from
@@ -51,7 +54,6 @@ RUN python -m pip install \
     --constraint /opt/wan2gp-container/core-constraints.txt \
     torchcodec==0.10.0 \
     onnxruntime-gpu==1.26.0 \
-    gradio==5.35.0 \
     decord2==3.4.0 \
     hf-xet==1.6.0 \
     jupyterlab==4.5.9 \
@@ -67,6 +69,7 @@ RUN git clone --filter=blob:none https://github.com/deepbeepmeep/Wan2GP.git /opt
     /tmp/requirements.filtered.txt \
     && python -m pip install \
     --constraint /opt/wan2gp-container/core-constraints.txt \
+    --constraint /opt/wan2gp-container/web-runtime-constraints.txt \
     --requirement /tmp/requirements.filtered.txt
 
 COPY finetunes/ltx2_distilled_old_vae.json /opt/wan2gp_source/finetunes/ltx2_distilled_old_vae.json
@@ -94,14 +97,14 @@ RUN test -n "$SAGEATTENTION_WHEEL_SHA256" \
     && python -m pip install --no-deps \
     /opt/wan2gp-container/attention-wheels/sageattention-2.2.0-cp311-cp311-linux_x86_64.whl \
     && python -m pip check \
-    && python /opt/wan2gp-container/validate-runtime.py \
+    && WAN2GP_APP_DIR=/opt/wan2gp_source python /opt/wan2gp-container/validate-runtime.py \
     && rm -rf /tmp/requirements.filtered.txt /root/.cache
 
 
 # Lean RunPod service base: nginx, SSH, web terminal, and Jupyter integration.
 FROM runpod/base:1.1.0-ubuntu2404@sha256:8fafffd0c67a48117dff09031ed16e79c0a83cc6996472f4b4dcb76343102a66 AS runtime
 
-ARG WAN2GP_REF=5e898b1ef15ed65910fb14f5f1f4a303957f2c60
+ARG WAN2GP_REF
 
 LABEL org.opencontainers.image.title="Wan2GP RunPod" \
     org.opencontainers.image.description="Wan2GP on PyTorch 2.10 / CUDA 12.8 for A40 and RTX 5090" \
