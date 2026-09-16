@@ -10,7 +10,8 @@ This image runs Wan2GP on both NVIDIA A40 (`sm86`) and RTX 5090 (`sm120`) with a
 - torchvision 0.25.0, torchaudio 2.10.0, TorchCodec 0.10.0
 - Triton 3.6.0
 - ONNX Runtime GPU 1.26.0
-- Gradio 5.35.0
+- Gradio 5.29.0 (matches Wan2GP's compiled frontend patch assets)
+- Hugging Face Hub 0.36.2 (compatible with the pinned Transformers runtime)
 - Decord2 3.4.0 (the maintained `decord` API for Python 3.11)
 - hf-xet 1.6.0 with high-performance mode for accelerated Hugging Face model downloads
 - SageAttention 2.2.0, installed from a checksum-verified project wheel
@@ -72,7 +73,7 @@ Apply a compatible upstream live update:
 update-wan2gp.sh
 ```
 
-The updater stashes tracked local edits, fast-forwards upstream `main`, filters image-owned dependencies, validates the environment, and then restarts Wan2GP. On failure it restores the previous source commit and dependency snapshot. Untracked models, outputs, and configuration are not touched. Its compatible dependency manifest is persisted in `/workspace/.wan2gp-state` and reconciled after pod recreation.
+The updater stashes tracked local edits, fast-forwards upstream `main`, filters image-owned dependencies, installs source-coupled packages such as Gradio from the updated requirements, validates the frontend assets against that source, and then restarts Wan2GP. On failure it restores the previous source commit and dependency snapshot. Untracked models, outputs, and configuration are not touched. Its compatible dependency manifest is persisted in `/workspace/.wan2gp-state` and reconciled after pod recreation.
 
 Core Torch, CUDA, Triton, ONNX, and Sage versions never change during a live update; updating those requires a new container image.
 
