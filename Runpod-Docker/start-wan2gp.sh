@@ -30,7 +30,8 @@ if [ -f "$STATE_DIR/requirements.filtered.txt" ]; then
     --requirement "$STATE_DIR/requirements.filtered.txt"
 fi
 
-"$VENV_DIR/bin/python" "$CONTAINER_SUPPORT_DIR/validate-runtime.py"
+"$VENV_DIR/bin/python" -m pip check
+WAN2GP_APP_DIR="$APP_DIR" "$VENV_DIR/bin/python" "$CONTAINER_SUPPORT_DIR/validate-runtime.py"
 
 WAN2GP_USERNAME="${WAN2GP_USERNAME:-admin}"
 WAN2GP_PASSWORD="${WAN2GP_PASSWORD:-gpuPoor2025}"
