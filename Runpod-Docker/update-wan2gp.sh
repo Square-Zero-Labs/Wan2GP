@@ -107,7 +107,7 @@ uv pip install \
   --requirement "$CANDIDATE_REQUIREMENTS"
 
 "$VENV_DIR/bin/python" -m pip check
-"$VENV_DIR/bin/python" "$SUPPORT_DIR/validate-runtime.py"
+WAN2GP_APP_DIR="$APP_DIR" "$VENV_DIR/bin/python" "$SUPPORT_DIR/validate-runtime.py"
 "$VENV_DIR/bin/python" -m compileall -q "$APP_DIR/wgp.py" "$APP_DIR/shared"
 
 mv "$CANDIDATE_REQUIREMENTS" "$STATE_DIR/requirements.filtered.txt"
