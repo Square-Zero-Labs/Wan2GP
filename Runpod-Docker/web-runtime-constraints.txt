@@ -1,0 +1,5 @@
+# Tested baseline for a fresh image build. Live updates intentionally do not use
+# this file: Gradio and Hugging Face Hub must move with Wan2GP's source
+# requirements instead of remaining locked to an older container image.
+gradio==5.29.0
+huggingface-hub==0.36.2
