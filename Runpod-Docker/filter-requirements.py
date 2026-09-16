@@ -3,7 +3,7 @@
 
 The filtered file is safe to install with core-constraints.txt. Incompatible
 managed requirements fail closed unless their package is explicitly allowed as
-an intentional container override (currently Gradio and ONNX Runtime).
+an intentional container override (currently ONNX Runtime only).
 """
 
 from __future__ import annotations
@@ -24,7 +24,6 @@ LOCKED = {
     "torchcodec": Version("0.10.0"),
     "triton": Version("3.6.0"),
     "onnxruntime-gpu": Version("1.26.0"),
-    "gradio": Version("5.35.0"),
     "decord2": Version("3.4.0"),
     "hf-xet": Version("1.6.0"),
     "sageattention": Version("2.2.0"),
@@ -35,7 +34,7 @@ REPLACEMENTS = {
     # is the maintained API-compatible distribution with CPython 3.11 wheels.
     "decord": "decord2==3.4.0",
 }
-DEFAULT_ALLOWED_MISMATCHES = {"gradio", "onnxruntime-gpu"}
+DEFAULT_ALLOWED_MISMATCHES = {"onnxruntime-gpu"}
 ORT_NIGHTLY_INDEX = "aiinfra.pkgs.visualstudio.com/PublicPackages/_packaging/ort-cuda-13-nightly"
 
 

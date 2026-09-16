@@ -2,10 +2,18 @@
 set -Eeuo pipefail
 
 SUPERVISOR_CONFIG="/etc/supervisor/wan2gp.conf"
+VENV_DIR="/opt/wan2gp-venv"
+SUPPORT_DIR="/opt/wan2gp-container"
+APP_DIR="/workspace/Wan2GP"
 HEALTH_URL="http://127.0.0.1:7860/"
 HEALTH_TIMEOUT="${WAN2GP_HEALTH_TIMEOUT:-180}"
 
 echo "--- Restarting Wan2GP ---"
+"$VENV_DIR/bin/python" -m pip check
+WAN2GP_APP_DIR="$APP_DIR" "$VENV_DIR/bin/python" "$SUPPORT_DIR/validate-runtime.py"
+nginx -t
+nginx -s reload
+
 if supervisorctl -c "$SUPERVISOR_CONFIG" status wan2gp | grep -q RUNNING; then
   supervisorctl -c "$SUPERVISOR_CONFIG" restart wan2gp
 else
