@@ -34,6 +34,7 @@ storage/
 samples/
 !.gitignore
 !requirements.txt
+!.github/
 .DS_Store
 *DS_Store
 google/
@@ -55,3 +56,5 @@ plugins_local.json
 /plugins/wangp-*/
 loras_url_cache.json
 loras_url_cache_v2.json
+*.log
+.devcontainer/
