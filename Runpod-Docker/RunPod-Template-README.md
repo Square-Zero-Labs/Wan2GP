@@ -6,6 +6,7 @@
 
 - Python 3.11, PyTorch 2.10, and CUDA 12.8 are installed in the container.
 - The prebuilt SageAttention 2.2 wheel includes the native targets needed by both GPUs.
+- Comfy Kitchen's prebuilt CUDA 13 wheel is excluded so the template also works on R570 hosts. Wan2GP uses Triton or PyTorch for those optional kernels.
 
 ## What is Wan2GP?
 
