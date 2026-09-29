@@ -114,6 +114,8 @@ import hf_xet  # noqa: E402,F401
 
 if find_spec("spas_sage_attn") is not None:
     raise RuntimeError("SpargeAttention must not be installed in the base image")
+if find_spec("comfy_kitchen") is not None:
+    raise RuntimeError("Comfy Kitchen must not be installed in the R570-compatible image")
 
 print(f"Python runtime validated: Torch {torch.__version__}, CUDA {torch.version.cuda}")
 print(f"TorchCodec {version('torchcodec')}; Triton {triton.__version__}")
