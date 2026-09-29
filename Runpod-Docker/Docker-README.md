@@ -17,7 +17,9 @@ This image runs Wan2GP on both NVIDIA A40 (`sm86`) and RTX 5090 (`sm120`) with a
 - SageAttention 2.2.0, installed from a checksum-verified project wheel
 - Ubuntu FFmpeg and Jupyter Lab
 
-The base image intentionally omits the larger optional native-kernel stack: FlashAttention, Nunchaku, LightX2V, and precompiled GGUF kernels. Wan2GP's ordinary features and its Python GGUF support remain installed.
+The base image intentionally omits Comfy Kitchen's prebuilt CUDA kernels. Its current wheel uses CUDA 13 and requires an R580+ host driver, while many compatible RunPod hosts use R570. Wan2GP uses its Triton or PyTorch fallbacks for INT8 math, H3 RMS/RoPE and VAE operations, and NVFP4. This trades some optional speed for a single image that works on both GPU types with R570. A CUDA 12.8 build of Comfy Kitchen could restore those fusions in a future image after GPU validation on both hosts.
+
+The image also omits the larger optional native-kernel stack: FlashAttention, Nunchaku, LightX2V, and precompiled GGUF kernels. Wan2GP's ordinary features and its Python GGUF support remain installed.
 
 ## Image tags
 
@@ -34,6 +36,10 @@ Do not promote the candidate until the A40 and RTX 5090 acceptance tests pass.
 - Volume mount: `/workspace`
 - HTTP ports: `7862,8888`
 - Host driver: R570 or newer. CUDA 12.8 does not require an R580 driver.
+
+The image excludes Comfy Kitchen from upstream requirements during both build and live updates. On startup it also refilters dependency manifests saved by older image versions so a recreated pod cannot reinstall the incompatible wheel.
+
+On an existing pod with the older image, selecting Triton under INT8 Math Kernels does not disable the separate H3 RMS/RoPE fusion. Select **Preserve Precision** under **CUDA Kernels Optimized Ops Precision (When Available)** to bypass it until the revised image is deployed.
 
 Wan2GP listens only on `127.0.0.1:7860`. Nginx exposes it with Basic Auth on port 7862; do not expose 7860 directly.
 
@@ -73,7 +79,7 @@ Apply a compatible upstream live update:
 update-wan2gp.sh
 ```
 
-The updater stashes tracked local edits, fast-forwards upstream `main`, filters image-owned dependencies, installs source-coupled packages such as Gradio from the updated requirements, validates the frontend assets against that source, and then restarts Wan2GP. On failure it restores the previous source commit and dependency snapshot. Untracked models, outputs, and configuration are not touched. Its compatible dependency manifest is persisted in `/workspace/.wan2gp-state` and reconciled after pod recreation.
+The updater stashes tracked local edits, fast-forwards upstream `main`, filters image-owned and incompatible dependencies, installs source-coupled packages such as Gradio from the updated requirements, validates the frontend assets against that source, and then restarts Wan2GP. On failure it restores the previous source commit and dependency snapshot. Untracked models, outputs, and configuration are not touched. Its compatible dependency manifest is persisted in `/workspace/.wan2gp-state` and reconciled after pod recreation.
 
 Core Torch, CUDA, Triton, ONNX, and Sage versions never change during a live update; updating those requires a new container image.
 
@@ -108,7 +114,7 @@ jupyter server list
 restart-wan2gp.sh
 ```
 
-The unauthenticated request must return `401`; the authenticated request must reach Gradio. Also run one small Sage2 generation and a short FlashVSR upscale with its bundled Triton backend on each GPU before merging `overhaul-docker` into `docker`.
+The unauthenticated request must return `401`; the authenticated request must reach Gradio. Also run one small Sage2 generation, one H3 generation with the default kernel settings, and a short FlashVSR upscale with its bundled Triton backend on each GPU before merging `overhaul-docker` into `docker`. Include an R570 RTX 5090 host in this check.
 
 ## Persistent paths
 

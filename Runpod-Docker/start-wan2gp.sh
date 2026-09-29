@@ -24,6 +24,12 @@ mkdir -p "$STATE_DIR"
 # requirements whenever a new container is created for the same volume.
 if [ -f "$STATE_DIR/requirements.filtered.txt" ]; then
   echo "Reconciling dependencies for the persisted live update..."
+  # Refilter manifests created by older images, which may still request the
+  # CUDA 13 Comfy Kitchen wheel on an R570 host.
+  COMPAT_REQUIREMENTS="$(mktemp "$STATE_DIR/requirements.filtered.XXXXXX")"
+  "$VENV_DIR/bin/python" "$CONTAINER_SUPPORT_DIR/filter-requirements.py" \
+    "$STATE_DIR/requirements.filtered.txt" "$COMPAT_REQUIREMENTS"
+  mv "$COMPAT_REQUIREMENTS" "$STATE_DIR/requirements.filtered.txt"
   uv pip install \
     --python "$VENV_DIR/bin/python" \
     --constraint "$CONTAINER_SUPPORT_DIR/core-constraints.txt" \
