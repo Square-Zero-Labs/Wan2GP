@@ -44,7 +44,8 @@ COPY Runpod-Docker/web-runtime-constraints.txt /opt/wan2gp-container/web-runtime
 
 # Install the image-owned CUDA stack first. PyTorch 2.10's cu128 wheel pins its
 # matching Triton 3.6 runtime; constraints prevent upstream requirements from
-# replacing any of these ABI-sensitive packages.
+# replacing any of these ABI-sensitive packages. filter-requirements.py also
+# excludes Comfy Kitchen: its prebuilt CUDA 13 wheel needs an R580+ host driver.
 RUN python -m pip install \
     --index-url https://download.pytorch.org/whl/cu128 \
     torch==2.10.0 \
