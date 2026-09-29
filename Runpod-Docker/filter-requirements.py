@@ -28,7 +28,9 @@ LOCKED = {
     "hf-xet": Version("1.6.0"),
     "sageattention": Version("2.2.0"),
 }
-EXCLUDED = {"spas-sage-attn"}
+# Comfy Kitchen's published CUDA 13 wheel needs an R580+ host driver. Keep the
+# CUDA 12.8 / R570 image on Wan2GP's Triton and PyTorch fallback paths.
+EXCLUDED = {"spas-sage-attn", "comfy-kitchen"}
 REPLACEMENTS = {
     # The 2021 decord wheel falsely embeds a CPython 3.6 platform tag. Decord2
     # is the maintained API-compatible distribution with CPython 3.11 wheels.

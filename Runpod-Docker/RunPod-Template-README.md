@@ -1,11 +1,12 @@
 # Wan2GP - AI Image and Video Generation Template
 
-#### Last Updated on 9/22/2026 to WanGP v13.1313 — It's Your Lucky Day^3!
+#### Last Updated on 9/28/2026 to WanGP v13.14 — Community Release
 
 ### _This version targets both A40 and RTX 5090 GPUs_
 
 - Python 3.11, PyTorch 2.10, and CUDA 12.8 are installed in the container.
 - The prebuilt SageAttention 2.2 wheel includes the native targets needed by both GPUs.
+- Comfy Kitchen's prebuilt CUDA 13 wheel is excluded so the template also works on R570 hosts. Wan2GP uses Triton or PyTorch for those optional kernels.
 
 ## What is Wan2GP?
 
