@@ -31,6 +31,9 @@ EXPECTED = {
     "decord2": "3.4.0",
     "hf-xet": "1.6.0",
     "sageattention": "2.2.0",
+    # Compatibility fallback for a pre-v17 checkout on a persistent volume.
+    # Current source imports its bundled mmgp/ directory instead.
+    "mmgp": "3.8.2",
 }
 TRUE_ENV_VALUES = {"1", "ON", "YES", "TRUE"}
 
