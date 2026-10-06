@@ -63,6 +63,8 @@ RUN python -m pip install \
 COPY Runpod-Docker/filter-requirements.py /opt/wan2gp-container/filter-requirements.py
 COPY Runpod-Docker/validate-runtime.py /opt/wan2gp-container/validate-runtime.py
 
+# Keep the last separately packaged MMGP release as a fallback for pre-v17
+# source retained on /workspace. Current source imports its bundled copy.
 RUN git clone --filter=blob:none https://github.com/deepbeepmeep/Wan2GP.git /opt/wan2gp_source \
     && git -C /opt/wan2gp_source checkout --detach "$WAN2GP_REF" \
     && python /opt/wan2gp-container/filter-requirements.py \
@@ -71,7 +73,8 @@ RUN git clone --filter=blob:none https://github.com/deepbeepmeep/Wan2GP.git /opt
     && python -m pip install \
     --constraint /opt/wan2gp-container/core-constraints.txt \
     --constraint /opt/wan2gp-container/web-runtime-constraints.txt \
-    --requirement /tmp/requirements.filtered.txt
+    --requirement /tmp/requirements.filtered.txt \
+    mmgp==3.8.2
 
 COPY finetunes/ltx2_distilled_old_vae.json /opt/wan2gp_source/finetunes/ltx2_distilled_old_vae.json
 
