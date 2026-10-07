@@ -1,6 +1,6 @@
 # Wan2GP - AI Image and Video Generation Template
 
-#### Last Updated on 10/6/2026 to WanGP v17.10: LTX-2.5 VFX Tools
+#### Last Updated on 10/7/2026 to WanGP v17.17: New MMPG RAM Allocator
 
 ### _This version targets both A40 and RTX 5090 GPUs_
 
