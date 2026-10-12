@@ -1,6 +1,6 @@
 # Wan2GP - AI Image and Video Generation Template
 
-#### Last Updated on 10/7/2026 to WanGP v17.17: New MMPG RAM Allocator
+#### Last Updated on 10/12/2026 to WanGP v18.00 - Distortion of Space and Time
 
 ### _This version targets both A40 and RTX 5090 GPUs_
 
