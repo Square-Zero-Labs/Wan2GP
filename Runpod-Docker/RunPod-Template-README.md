@@ -1,6 +1,6 @@
 # Wan2GP - AI Image and Video Generation Template
 
-#### Last Updated on 10/12/2026 to WanGP v18.00 - Distortion of Space and Time
+#### Last Updated on 10/16/2026 to WanGP WanGP v18.17 - More Drama per Gigabyte
 
 ### _This version targets both A40 and RTX 5090 GPUs_
 
