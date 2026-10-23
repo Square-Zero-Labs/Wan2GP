@@ -1,6 +1,6 @@
 # Wan2GP - AI Image and Video Generation Template
 
-#### Last Updated on 10/18/2026 to WanGP v18.19: lots of bugs fixes, MOSS TTS, Krea Edit v2
+#### Last Updated on 10/23/2026 to WanGP v18.21 No GPU Left Behind
 
 ### _This version targets both A40 and RTX 5090 GPUs_
 
