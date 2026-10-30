@@ -1,6 +1,6 @@
 # Wan2GP - AI Image and Video Generation Template
 
-#### Last Updated on 10/23/2026 to WanGP v18.21 No GPU Left Behind
+#### Last Updated on 10/40/2026 to WanGP v18.888 - Are You Game?
 
 ### _This version targets both A40 and RTX 5090 GPUs_
 
