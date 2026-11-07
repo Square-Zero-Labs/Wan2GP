@@ -6,8 +6,6 @@ on:
       - main
       - docker
       - update-11-6-2026
-    tags:
-      - "v*"
 
 env:
   REGISTRY: ghcr.io
