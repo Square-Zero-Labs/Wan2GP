@@ -27,6 +27,7 @@ LOCKED = {
     "decord2": Version("3.4.0"),
     "hf-xet": Version("1.6.0"),
     "sageattention": Version("2.2.0"),
+    "llamacpp-gguf-cuda": Version("1.0.30+torch210cu128py311"),
 }
 # Comfy Kitchen's published CUDA 13 wheel needs an R580+ host driver. Keep the
 # CUDA 12.8 / R570 image on Wan2GP's Triton and PyTorch fallback paths.
