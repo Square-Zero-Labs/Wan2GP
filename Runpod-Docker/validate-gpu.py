@@ -1,10 +1,11 @@
 #!/usr/bin/env python3
-"""Exercise the actual Wan2GP SageAttention path on a running pod."""
+"""Exercise Wan2GP's SageAttention and GGUF CUDA paths on a running pod."""
 
 from __future__ import annotations
 
 import os
 import sys
+from importlib import import_module
 from pathlib import Path
 
 import torch
@@ -49,4 +50,15 @@ torch.testing.assert_close(sage_output.float(), reference.float(), rtol=0.25, at
 
 print(f"GPU: {torch.cuda.get_device_name(device)} (sm{capability[0]}{capability[1]})")
 print(f"Sage2 max absolute error vs SDPA: {(sage_output.float() - reference.float()).abs().max().item():.6f}")
-print("A40/RTX 5090 SageAttention validation passed")
+
+# Require every extension on a GPU host; the package can otherwise silently
+# omit its optional attention extension when a native import fails.
+for extension in ("_C", "_attention", "_prism"):
+    import_module(f"llamacpp_gguf_cuda.{extension}")
+
+from shared.qtypes.gguf import _probe_gguf_cuda_runtime  # noqa: E402
+
+if not _probe_gguf_cuda_runtime(force=True):
+    raise RuntimeError("Wan2GP's GGUF CUDA numerical self-test failed")
+
+print("A40/RTX 5090 SageAttention and GGUF CUDA validation passed")

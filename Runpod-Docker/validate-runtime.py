@@ -31,6 +31,7 @@ EXPECTED = {
     "decord2": "3.4.0",
     "hf-xet": "1.6.0",
     "sageattention": "2.2.0",
+    "llamacpp-gguf-cuda": "1.0.30+torch210cu128py311",
     # Compatibility fallback for a pre-v17 checkout on a persistent volume.
     # Current source imports its bundled mmgp/ directory instead.
     "mmgp": "3.8.2",
@@ -89,7 +90,9 @@ def validate_gradio_frontend(root: Path) -> None:
 
 
 for package, expected in EXPECTED.items():
-    actual = version(package).split("+", 1)[0]
+    actual = version(package)
+    if "+" not in expected:
+        actual = actual.split("+", 1)[0]
     if actual != expected:
         raise RuntimeError(f"{package}: expected {expected}, found {actual}")
 
@@ -114,6 +117,7 @@ if os.environ.get("HF_XET_HIGH_PERFORMANCE", "").upper() not in TRUE_ENV_VALUES:
 
 import sageattention  # noqa: E402,F401
 import hf_xet  # noqa: E402,F401
+import llamacpp_gguf_cuda  # noqa: E402,F401
 
 if find_spec("spas_sage_attn") is not None:
     raise RuntimeError("SpargeAttention must not be installed in the base image")
@@ -122,6 +126,7 @@ if find_spec("comfy_kitchen") is not None:
 
 print(f"Python runtime validated: Torch {torch.__version__}, CUDA {torch.version.cuda}")
 print(f"TorchCodec {version('torchcodec')}; Triton {triton.__version__}")
+print(f"GGUF CUDA kernels {version('llamacpp-gguf-cuda')}")
 print(f"Gradio {version('gradio')}; Transformers {transformers.__version__}; Hugging Face Hub {huggingface_hub.__version__}")
 print(f"HF Xet {version('hf-xet')}; high-performance mode enabled")
 print(f"Decord2 {version('decord2')} API: {decord.__file__}")
