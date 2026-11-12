@@ -3,7 +3,7 @@
 ARG WAN2GP_REF=49f128de9e6032b0cf4528c3714873fbdddb3464
 
 # The build image supplies nvcc-compatible CUDA headers when assembling the
-# Python environment. Native attention extensions are downloaded as verified
+# Python environment. Native attention and GGUF extensions use verified
 # release artifacts, so no compiler or CUDA toolkit is copied into the runtime.
 FROM runpod/base:1.1.0-cuda1281-ubuntu2404@sha256:f9879c67c7da08d2f7e3c8bfa5ec5f6104ad9aa8577a93a095fc4bc2bd902112 AS dependencies
 
@@ -87,6 +87,10 @@ ARG ATTENTION_WHEEL_RELEASE=8-8-2026
 ARG SAGEATTENTION_WHEEL_URL=https://github.com/Square-Zero-Labs/Wan2GP-Runpod-Wheels/releases/download/${ATTENTION_WHEEL_RELEASE}/sageattention-2.2.0-cp311-cp311-linux_x86_64.whl
 ARG SAGEATTENTION_WHEEL_SHA256=9fa280f209779caefecf70dcbc368eb1514348e89cd6fcc3e92d50e37965ed65
 
+ARG GGUF_WHEEL_RELEASE=gguf-1.0.30-torch2.10.0-cu128-py311-sm86-sm120-v1
+ARG GGUF_WHEEL_URL=https://github.com/Square-Zero-Labs/Wan2GP-Runpod-Wheels/releases/download/${GGUF_WHEEL_RELEASE}/llamacpp_gguf_cuda-1.0.30+torch210cu128py311-cp311-cp311-linux_x86_64.whl
+ARG GGUF_WHEEL_SHA256=8e2b6a6fed2bd026c22d9b7d21d0fb2b6d20258db8c73e4fe9ecfad192fc3726
+
 # Refuse an unverifiable attention artifact. Defaults are pinned to the
 # published release; the GitHub workflow can override them with repository
 # variables when advancing to a new release.
@@ -99,7 +103,20 @@ RUN test -n "$SAGEATTENTION_WHEEL_SHA256" \
     && echo "$SAGEATTENTION_WHEEL_SHA256  /opt/wan2gp-container/attention-wheels/sageattention-2.2.0-cp311-cp311-linux_x86_64.whl" \
     | sha256sum --check --strict \
     && python -m pip install --no-deps \
-    /opt/wan2gp-container/attention-wheels/sageattention-2.2.0-cp311-cp311-linux_x86_64.whl \
+    /opt/wan2gp-container/attention-wheels/sageattention-2.2.0-cp311-cp311-linux_x86_64.whl
+
+# CUDA 12.8 build with native SM86 (A40) and SM120 (RTX 5090) code. Retain
+# the wheel so dependency rollback can reinstall pip's recorded local source.
+RUN test -n "$GGUF_WHEEL_SHA256" \
+    || { echo "GGUF_WHEEL_SHA256 is required" >&2; exit 1; } \
+    && mkdir -p /opt/wan2gp-container/gguf-wheels \
+    && curl --fail --location --retry 3 --retry-all-errors \
+    "$GGUF_WHEEL_URL" \
+    --output /opt/wan2gp-container/gguf-wheels/llamacpp_gguf_cuda-1.0.30+torch210cu128py311-cp311-cp311-linux_x86_64.whl \
+    && echo "$GGUF_WHEEL_SHA256  /opt/wan2gp-container/gguf-wheels/llamacpp_gguf_cuda-1.0.30+torch210cu128py311-cp311-cp311-linux_x86_64.whl" \
+    | sha256sum --check --strict \
+    && python -m pip install --no-deps \
+    /opt/wan2gp-container/gguf-wheels/llamacpp_gguf_cuda-1.0.30+torch210cu128py311-cp311-cp311-linux_x86_64.whl \
     && python -m pip check \
     && WAN2GP_APP_DIR=/opt/wan2gp_source python /opt/wan2gp-container/validate-runtime.py \
     && rm -rf /tmp/requirements.filtered.txt /root/.cache
