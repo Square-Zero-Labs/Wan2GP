@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1.7
 
-ARG WAN2GP_REF=f0b54e02aa32b539e7be5c65cf4ada67db69da26
+ARG WAN2GP_REF=49f128de9e6032b0cf4528c3714873fbdddb3464
 
 # The build image supplies nvcc-compatible CUDA headers when assembling the
 # Python environment. Native attention extensions are downloaded as verified
