@@ -1,6 +1,6 @@
 # Wan2GP - AI Image and Video Generation Template
 
-#### Last Updated on 11/6/2026 to WanGP v19.20 - Showrunner Makes and Remakes
+#### Last Updated on 11/11/2026 to WanGP v19.29 - WanGP v19.29 - Bonus Track
 
 ### _This version targets both A40 and RTX 5090 GPUs_
 
