@@ -15,11 +15,22 @@ This image runs Wan2GP on both NVIDIA A40 (`sm86`) and RTX 5090 (`sm120`) with a
 - Decord2 3.4.0 (the maintained `decord` API for Python 3.11)
 - hf-xet 1.6.0 with high-performance mode for accelerated Hugging Face model downloads
 - SageAttention 2.2.0, installed from a checksum-verified project wheel
+- GGUF CUDA kernels 1.0.30+torch210cu128py311, installed from a checksum-verified project wheel
 - Ubuntu FFmpeg and Jupyter Lab
 
 The base image intentionally omits Comfy Kitchen's prebuilt CUDA kernels. Its current wheel uses CUDA 13 and requires an R580+ host driver, while many compatible RunPod hosts use R570. Wan2GP uses its Triton or PyTorch fallbacks for INT8 math, H3 RMS/RoPE and VAE operations, and NVFP4. This trades some optional speed for a single image that works on both GPU types with R570. A CUDA 12.8 build of Comfy Kitchen could restore those fusions in a future image after GPU validation on both hosts.
 
-The image also omits the larger optional native-kernel stack: FlashAttention, Nunchaku, LightX2V, and precompiled GGUF kernels. Wan2GP's ordinary features and its Python GGUF support remain installed.
+The image also omits the larger optional native-kernel stack: FlashAttention, Nunchaku, and LightX2V.
+
+The [GGUF wheel release](https://github.com/Square-Zero-Labs/Wan2GP-Runpod-Wheels/releases/tag/gguf-1.0.30-torch2.10.0-cu128-py311-sm86-sm120-v1)
+targets this image's Python 3.11 / PyTorch 2.10 / CUDA 12.8 stack. All three
+extensions include native SM86 (A40) and SM120 (RTX 5090) code, plus SM120 PTX.
+Wan2GP automatically uses the installed kernels for supported GGUF operations,
+including Deepy/Showrunner planning, without a backend selection or CUDA 13
+upgrade. The wheel passed 18 GPU checks and a Qwen 27B Q4 Deepy request on an
+A40; RTX 5090 execution testing is pending. Initially use **Speculative Decoding
+Disabled**, as in the successful Deepy test; the wheel does not fix the separate
+MTP model-lifetime exception.
 
 ## Image tags
 
@@ -81,12 +92,13 @@ update-wan2gp.sh
 
 The updater stashes tracked local edits, fast-forwards upstream `main`, filters image-owned and incompatible dependencies, installs source-coupled packages such as Gradio from the updated requirements, validates the frontend assets against that source, and then restarts Wan2GP. On failure it restores the previous source commit and dependency snapshot. Untracked models, outputs, and configuration are not touched. Its compatible dependency manifest is persisted in `/workspace/.wan2gp-state` and reconciled after pod recreation.
 
-Core Torch, CUDA, Triton, ONNX, and Sage versions never change during a live update; updating those requires a new container image.
+Core Torch, CUDA, Triton, ONNX, Sage, and GGUF kernel versions never change during a live update; updating those requires a new container image.
 
 ## Build
 
-The default build is pinned to the verified `8-8-2026` SageAttention-wheel
-release and its SHA-256 value:
+The default build pins both the `8-8-2026` SageAttention release and the
+`gguf-1.0.30-torch2.10.0-cu128-py311-sm86-sm120-v1` GGUF release to their
+verified SHA-256 values:
 
 ```bash
 docker build \
@@ -100,6 +112,12 @@ When advancing to a different wheel release, override the release tag, URLs, and
 hash together. The GitHub workflow accepts an optional repository variable named
 `SAGEATTENTION_WHEEL_SHA256`; otherwise it uses the verified release hash
 committed in the workflow.
+
+The GGUF defaults are in the Dockerfile: `GGUF_WHEEL_RELEASE`, `GGUF_WHEEL_URL`,
+and `GGUF_WHEEL_SHA256`. The wheel is installed with `--no-deps` to preserve
+the CUDA stack and retained under `/opt/wan2gp-container/gguf-wheels` for
+dependency rollback. Runtime validation requires the exact CUDA 12.8 build,
+including its local version suffix.
 
 ## Acceptance tests
 
@@ -115,6 +133,12 @@ restart-wan2gp.sh
 ```
 
 The unauthenticated request must return `401`; the authenticated request must reach Gradio. Also run one small Sage2 generation, one H3 generation with the default kernel settings, and a short FlashVSR upscale with its bundled Triton backend on each GPU before merging `overhaul-docker` into `docker`. Include an R570 RTX 5090 host in this check.
+
+`validate-gpu.py` also imports all three GGUF native extensions and runs
+Wan2GP's GGUF CUDA numerical self-test. Test a short Deepy/Showrunner planning
+request with GGUF Q4 weights and Speculative Decoding Disabled on each GPU.
+Confirm `[GGUF][llama.cpp CUDA] kernels available.` and an active Q4_K/Q6_K
+linear fast path in `/workspace/wan2gp.log`.
 
 ## Persistent paths
 
