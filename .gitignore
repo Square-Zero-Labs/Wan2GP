@@ -25,6 +25,7 @@ samples/
 !.gitignore
 !requirements.txt
 !/profiles/prism/.gitkeep
+!.github/
 .DS_Store
 *DS_Store
 google/
@@ -68,3 +69,5 @@ postprocessing/seedvc/
 !.github/
 !.github/workflows/
 !.github/workflows/manager-catalog.yml
+*.log
+.devcontainer/
