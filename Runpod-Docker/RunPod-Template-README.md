@@ -1,6 +1,6 @@
 # Wan2GP - AI Image and Video Generation Template
 
-#### Last Updated on 11/11/2026 to WanGP v19.29 - WanGP v19.29 - Bonus Track
+#### Last Updated on 11/18/2026 to WanGP v20.00 - VRAM and RAM so Low You Can't Measure Them !
 
 ### _This version targets both A40 and RTX 5090 GPUs_
 

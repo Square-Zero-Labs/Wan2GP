@@ -5,8 +5,7 @@ on:
     branches:
       - main
       - docker
-      - update-11-11-2026
-      - gguf-wheels
+      - update-11-18-2026
 
 env:
   REGISTRY: ghcr.io
